@@ -3,29 +3,49 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Terminal } from "lucide-react";
+import { Terminal, Github, Chrome } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<"github" | "google" | null>(null);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
+  const handleOAuthLogin = async (provider: "github" | "google") => {
+    setOauthLoading(provider);
+    try {
+      // In production, this would redirect to Supabase OAuth endpoint
+      // For now, simulate OAuth flow
+      localStorage.setItem("userId", `oauth-${provider}-user-${Date.now()}`);
+      router.push("/dashboard");
+    } catch (error) {
+      console.error(`Failed to initiate ${provider} login:`, error);
+      setOauthLoading(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // In production, call Supabase auth endpoint
+      // For MVP, simulate successful login
+      localStorage.setItem("userId", `user-${Date.now()}`);
       router.push("/dashboard");
-    }, 1000);
+    } catch (error) {
+      alert("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -98,21 +118,45 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">Don't have an account? </span>
+            <Separator className="my-4" />
+
+            <div className="space-y-3">
+              <p className="text-center text-sm text-muted-foreground">Or continue with</p>
+              
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-border/20 hover:bg-secondary/30"
+                onClick={() => handleOAuthLogin("github")}
+                disabled={oauthLoading === "github"}
+              >
+                <Github className="w-4 h-4 mr-2" />
+                {oauthLoading === "github" ? "Connecting..." : "GitHub"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-border/20 hover:bg-secondary/30"
+                onClick={() => handleOAuthLogin("google")}
+                disabled={oauthLoading === "google"}
+              >
+                <Chrome className="w-4 h-4 mr-2" />
+                {oauthLoading === "google" ? "Connecting..." : "Google"}
+              </Button>
+            </div>
+
+            <p className="text-center text-sm text-muted-foreground mt-6">
+              Don't have an account?{" "}
               <Link 
                 href="/auth/register" 
                 className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
               >
                 Sign up
               </Link>
-            </div>
+            </p>
           </CardContent>
         </Card>
-
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          By continuing, you agree to our Terms of Service and Privacy Policy
-        </p>
       </div>
     </div>
   );

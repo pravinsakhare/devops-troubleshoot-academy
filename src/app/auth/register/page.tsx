@@ -3,16 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Terminal } from "lucide-react";
+import { Terminal, Github, Chrome } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<"github" | "google" | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -20,6 +22,18 @@ export default function RegisterPage() {
     confirmPassword: "",
     agreeToTerms: false,
   });
+
+  const handleOAuthSignup = async (provider: "github" | "google") => {
+    setOauthLoading(provider);
+    try {
+      // In production, this would redirect to Supabase OAuth endpoint
+      localStorage.setItem("userId", `oauth-${provider}-user-${Date.now()}`);
+      router.push("/auth/verify-email");
+    } catch (error) {
+      console.error(`Failed to initiate ${provider} signup:`, error);
+      setOauthLoading(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,11 +50,16 @@ export default function RegisterPage() {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // In production, call Supabase auth endpoint
+      localStorage.setItem("userId", `user-${Date.now()}`);
+      // Redirect to email verification
+      router.push("/auth/verify-email");
+    } catch (error) {
+      alert("An error occurred. Please try again.");
+    } finally {
       setIsLoading(false);
-      router.push("/dashboard");
-    }, 1000);
+    }
   };
 
   return (
@@ -155,15 +174,43 @@ export default function RegisterPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">Already have an account? </span>
+            <Separator className="my-4" />
+
+            <div className="space-y-3">
+              <p className="text-center text-sm text-muted-foreground">Or sign up with</p>
+              
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-border/20 hover:bg-secondary/30"
+                onClick={() => handleOAuthSignup("github")}
+                disabled={oauthLoading === "github"}
+              >
+                <Github className="w-4 h-4 mr-2" />
+                {oauthLoading === "github" ? "Connecting..." : "GitHub"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-border/20 hover:bg-secondary/30"
+                onClick={() => handleOAuthSignup("google")}
+                disabled={oauthLoading === "google"}
+              >
+                <Chrome className="w-4 h-4 mr-2" />
+                {oauthLoading === "google" ? "Connecting..." : "Google"}
+              </Button>
+            </div>
+
+            <p className="text-center text-sm text-muted-foreground mt-6">
+              Already have an account?{" "}
               <Link 
                 href="/auth/login" 
                 className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
               >
                 Sign in
               </Link>
-            </div>
+            </p>
           </CardContent>
         </Card>
       </div>

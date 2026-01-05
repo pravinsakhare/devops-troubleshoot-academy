@@ -23,12 +23,14 @@ import { MobileWarning } from "@/components/common/mobile-warning";
 
 export default function WorkspacePage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const [userId, setUserId] = useState<string>("");
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [commandCount, setCommandCount] = useState(0);
   const [progress, setProgress] = useState(15);
   const [currentHintLevel, setCurrentHintLevel] = useState(0);
   const [isHintDrawerOpen, setIsHintDrawerOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const hints = [
     "Start by checking the pod status using `kubectl get pods`",
@@ -39,12 +41,79 @@ export default function WorkspacePage({ params }: { params: { id: string } }) {
   ];
 
   useEffect(() => {
+    // Get user ID from localStorage (set after Supabase auth)
+    const storedUserId = localStorage.getItem("userId");
+    if (storedUserId) {
+      setUserId(storedUserId);
+    }
+
+    // Load progress from Supabase
+    loadProgress(storedUserId || "");
+  }, [params.id]);
+
+  const loadProgress = async (userId: string) => {
+    if (!userId) return;
+    try {
+      const response = await fetch(
+        `/api/progress?userId=${userId}&scenarioId=${params.id}`
+      );
+      const data = await response.json();
+      if (data.progress) {
+        setHintsUsed(data.progress.hints_used);
+        setCommandCount(data.progress.commands_executed);
+        setTimeElapsed(data.progress.time_spent_seconds);
+      }
+    } catch (error) {
+      console.error("Failed to load progress:", error);
+    }
+  };
+
+  const saveProgress = async () => {
+    if (!userId) return;
+    
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          scenarioId: params.id,
+          status: progress === 100 ? "completed" : "in_progress",
+          hintsUsed,
+          commandsExecuted: commandCount,
+          timeSpentSeconds: timeElapsed,
+        }),
+      });
+      
+      if (response.ok) {
+        console.log("Progress saved successfully");
+      }
+    } catch (error) {
+      console.error("Failed to save progress:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setTimeElapsed(prev => prev + 1);
     }, 1000);
 
     return () => clearInterval(timer);
   }, []);
+
+  // Auto-save every 30 seconds
+  useEffect(() => {
+    const saveTimer = setInterval(() => {
+      if (userId) {
+        saveProgress();
+      }
+    }, 30000);
+
+    return () => clearInterval(saveTimer);
+  }, [userId, hintsUsed, commandCount, timeElapsed, progress]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -54,6 +123,9 @@ export default function WorkspacePage({ params }: { params: { id: string } }) {
 
   const handleExit = () => {
     if (confirm("Are you sure you want to exit? Your progress will be saved.")) {
+      if (userId) {
+        saveProgress();
+      }
       router.push("/dashboard");
     }
   };
@@ -101,9 +173,15 @@ export default function WorkspacePage({ params }: { params: { id: string } }) {
                 </div>
                 <span className="text-sm font-semibold">{progress}%</span>
               </div>
-              <Button variant="outline" size="sm" className="border-border/20">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="border-border/20"
+                onClick={saveProgress}
+                disabled={isSaving}
+              >
                 <Save className="w-4 h-4 mr-2" />
-                Save
+                {isSaving ? "Saving..." : "Save"}
               </Button>
               <Button variant="ghost" size="sm" onClick={handleExit}>
                 <X className="w-4 h-4 mr-2" />
@@ -367,19 +445,50 @@ function TerminalEmulator({
 
     // Simulate command execution
     setTimeout(() => {
-      const output = simulateCommand(input);
-      setHistory(prev => [...prev, ...output]);
-      
-      // Update progress based on correct commands
-      if (input.includes('get pods') || input.includes('describe') || input.includes('logs')) {
-        onProgressUpdate(Math.min(100, Math.random() * 30 + 20));
-      }
+      simulateCommand(input).then(output => {
+        setHistory(prev => [...prev, ...output]);
+        
+        // Update progress based on correct commands
+        if (input.includes('get pods') || input.includes('describe') || input.includes('logs')) {
+          onProgressUpdate(Math.min(100, progress + 10));
+        }
+      });
     }, 300);
 
     setInput("");
   };
 
-  const simulateCommand = (cmd: string): Array<{ type: 'input' | 'output' | 'error'; text: string }> => {
+  const simulateCommand = async (cmd: string): Promise<Array<{ type: 'input' | 'output' | 'error'; text: string }>> => {
+    try {
+      const response = await fetch("/api/execute-command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          command: cmd,
+          workspaceId: params.id,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        return [{ type: 'error', text: data.error || "Command execution failed" }];
+      }
+
+      const results: Array<{ type: 'input' | 'output' | 'error'; text: string }> = [];
+      if (data.output) {
+        results.push({ type: 'output', text: data.output });
+      }
+      if (data.error) {
+        results.push({ type: 'error', text: data.error });
+      }
+      return results.length > 0 ? results : [{ type: 'output', text: "Command executed successfully\n" }];
+    } catch (error) {
+      return [{ type: 'error', text: "Failed to execute command. Check your connection.\n" }];
+    }
+  };
+
+  const legacySimulateCommand = (cmd: string): Array<{ type: 'input' | 'output' | 'error'; text: string }> => {
     if (cmd.includes('get pods')) {
       return [
         { type: 'output', text: 'NAME               READY   STATUS             RESTARTS   AGE' },
