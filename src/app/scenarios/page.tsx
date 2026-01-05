@@ -1,16 +1,22 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Navigation } from "@/components/layout/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ScenarioCard, ScenarioGrid } from "@/components/scenarios/scenario-card";
+import { ScenarioDetailModal } from "@/components/scenarios/scenario-detail-modal";
 import { 
   Search, 
   Clock, 
   Play,
   Filter,
-  CheckCircle2
+  CheckCircle2,
+  Grid,
+  List,
+  SlidersHorizontal
 } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
@@ -95,6 +101,8 @@ const scenarios = [
 export default function ScenariosPage() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [selectedScenario, setSelectedScenario] = useState<typeof scenarios[0] | null>(null);
 
   const filteredScenarios = scenarios.filter(scenario => {
     const matchesDifficulty = selectedDifficulty === "All" || scenario.difficulty === selectedDifficulty;
@@ -107,12 +115,16 @@ export default function ScenariosPage() {
   const difficultyOptions: Difficulty[] = ["All", "Beginner", "Intermediate", "Advanced"];
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] noise-texture">
+    <div className="min-h-screen bg-[#0a0e1a]">
       <Navigation />
       
       <div className="container mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
           <h1 className="text-4xl font-display font-bold mb-2">
             <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
               Troubleshooting Scenarios
@@ -121,51 +133,82 @@ export default function ScenariosPage() {
           <p className="text-muted-foreground text-lg">
             Choose a broken K8s cluster to debug and learn from
           </p>
-        </div>
+        </motion.div>
 
         {/* Filter Bar */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/20 mb-8">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search scenarios..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-secondary/50 border-border/20 focus:border-cyan-500/50"
-                />
-              </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="bg-card/50 backdrop-blur-sm border-cyan-500/10 mb-8">
+            <CardContent className="p-6">
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* Search */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search scenarios..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-secondary/50 border-cyan-500/20 focus:border-cyan-500/50"
+                  />
+                </div>
 
-              {/* Difficulty Filter */}
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <div className="flex gap-2">
-                  {difficultyOptions.map((difficulty) => (
-                    <Button
-                      key={difficulty}
-                      variant={selectedDifficulty === difficulty ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedDifficulty(difficulty)}
-                      className={
-                        selectedDifficulty === difficulty
-                          ? "bg-cyan-500 hover:bg-cyan-600"
-                          : "border-border/20 hover:border-cyan-500/30"
-                      }
-                    >
-                      {difficulty}
-                    </Button>
-                  ))}
+                {/* Difficulty Filter */}
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex gap-2 flex-wrap">
+                    {difficultyOptions.map((difficulty) => (
+                      <Button
+                        key={difficulty}
+                        variant={selectedDifficulty === difficulty ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedDifficulty(difficulty)}
+                        className={
+                          selectedDifficulty === difficulty
+                            ? "bg-cyan-500 hover:bg-cyan-600"
+                            : "border-cyan-500/20 hover:border-cyan-500/40 hover:bg-cyan-500/10"
+                        }
+                      >
+                        {difficulty}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* View Toggle */}
+                <div className="flex items-center gap-1 border border-cyan-500/20 rounded-lg p-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewMode("grid")}
+                    className={viewMode === "grid" ? "bg-cyan-500/20 text-cyan-400" : "text-muted-foreground"}
+                  >
+                    <Grid className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className={viewMode === "list" ? "bg-cyan-500/20 text-cyan-400" : "text-muted-foreground"}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-card/30 backdrop-blur-sm border-border/20">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+        >
+          <Card className="bg-card/30 backdrop-blur-sm border-cyan-500/10 hover:border-cyan-500/30 transition-colors">
             <CardContent className="p-4">
               <div className="text-2xl font-display font-bold text-cyan-400">
                 {scenarios.length}
@@ -173,7 +216,7 @@ export default function ScenariosPage() {
               <div className="text-sm text-muted-foreground">Total Scenarios</div>
             </CardContent>
           </Card>
-          <Card className="bg-card/30 backdrop-blur-sm border-border/20">
+          <Card className="bg-card/30 backdrop-blur-sm border-cyan-500/10 hover:border-cyan-500/30 transition-colors">
             <CardContent className="p-4">
               <div className="text-2xl font-display font-bold text-green-400">
                 {scenarios.filter(s => s.completed).length}
@@ -181,15 +224,15 @@ export default function ScenariosPage() {
               <div className="text-sm text-muted-foreground">Completed</div>
             </CardContent>
           </Card>
-          <Card className="bg-card/30 backdrop-blur-sm border-border/20">
+          <Card className="bg-card/30 backdrop-blur-sm border-cyan-500/10 hover:border-cyan-500/30 transition-colors">
             <CardContent className="p-4">
               <div className="text-2xl font-display font-bold text-yellow-400">
                 {scenarios.filter(s => !s.completed).length}
               </div>
-              <div className="text-sm text-muted-foreground">In Progress</div>
+              <div className="text-sm text-muted-foreground">Remaining</div>
             </CardContent>
           </Card>
-          <Card className="bg-card/30 backdrop-blur-sm border-border/20">
+          <Card className="bg-card/30 backdrop-blur-sm border-cyan-500/10 hover:border-cyan-500/30 transition-colors">
             <CardContent className="p-4">
               <div className="text-2xl font-display font-bold text-purple-400">
                 {Math.round((scenarios.filter(s => s.completed).length / scenarios.length) * 100)}%
@@ -197,18 +240,52 @@ export default function ScenariosPage() {
               <div className="text-sm text-muted-foreground">Completion Rate</div>
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
 
         {/* Scenarios Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredScenarios.map((scenario) => (
-            <ScenarioCard key={scenario.id} scenario={scenario} />
-          ))}
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          {viewMode === "grid" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredScenarios.map((scenario, index) => (
+                <motion.div
+                  key={scenario.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * (index % 6) }}
+                >
+                  <ScenarioCard
+                    id={scenario.id}
+                    title={scenario.title}
+                    description={scenario.description}
+                    difficulty={scenario.difficulty as "Beginner" | "Intermediate" | "Advanced"}
+                    duration={scenario.duration}
+                    category={scenario.category}
+                    completed={scenario.completed}
+                    onClick={() => setSelectedScenario(scenario)}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredScenarios.map((scenario) => (
+                <OldScenarioCard key={scenario.id} scenario={scenario} />
+              ))}
+            </div>
+          )}
+        </motion.div>
 
         {/* Empty State */}
         {filteredScenarios.length === 0 && (
-          <div className="text-center py-16">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16"
+          >
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-secondary/50 flex items-center justify-center">
               <Search className="w-8 h-8 text-muted-foreground" />
             </div>
@@ -226,70 +303,94 @@ export default function ScenariosPage() {
             >
               Clear Filters
             </Button>
-          </div>
+          </motion.div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {selectedScenario && (
+        <ScenarioDetailModal
+          scenario={{
+            id: selectedScenario.id,
+            title: selectedScenario.title,
+            description: selectedScenario.description,
+            difficulty: selectedScenario.difficulty as "Beginner" | "Intermediate" | "Advanced",
+            duration: selectedScenario.duration,
+            category: selectedScenario.category,
+          }}
+          open={!!selectedScenario}
+          onOpenChange={(open) => !open && setSelectedScenario(null)}
+        />
+      )}
     </div>
   );
 }
 
-function ScenarioCard({ scenario }: { scenario: typeof scenarios[0] }) {
+function OldScenarioCard({ scenario }: { scenario: typeof scenarios[0] }) {
   const difficultyColors: Record<string, string> = {
-    Beginner: "bg-green-500/20 text-green-400 border-green-500/30",
-    Intermediate: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-    Advanced: "bg-red-500/20 text-red-400 border-red-500/30",
+    Beginner: "badge-beginner",
+    Intermediate: "badge-intermediate",
+    Advanced: "badge-advanced",
   };
 
   return (
-    <Card className="bg-card/50 backdrop-blur-sm border-border/20 hover:border-cyan-500/30 transition-all duration-300 group overflow-hidden">
-      <CardHeader>
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1">
-            <CardTitle className="font-display text-xl mb-2 group-hover:text-cyan-400 transition-colors">
-              {scenario.title}
-            </CardTitle>
-            <CardDescription className="text-sm leading-relaxed">
-              {scenario.description}
-            </CardDescription>
-          </div>
-          {scenario.completed && (
-            <div className="flex-shrink-0 ml-3">
-              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-green-400" />
+    <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }}>
+      <Card className="bg-card/50 backdrop-blur-sm border-cyan-500/10 hover:border-cyan-500/30 transition-all duration-300 group overflow-hidden">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-6">
+            {/* Status indicator */}
+            <div className="flex-shrink-0">
+              {scenario.completed ? (
+                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6 text-green-400" />
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                  <Play className="w-6 h-6 text-cyan-400" />
+                </div>
+              )}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Badge className={difficultyColors[scenario.difficulty]}>
+                  {scenario.difficulty}
+                </Badge>
+                <Badge variant="outline" className="text-xs border-cyan-500/20">
+                  {scenario.category}
+                </Badge>
               </div>
+              <h3 className="font-display text-lg font-semibold mb-1 group-hover:text-cyan-400 transition-colors truncate">
+                {scenario.title}
+              </h3>
+              <p className="text-sm text-muted-foreground truncate">
+                {scenario.description}
+              </p>
             </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Badge className={difficultyColors[scenario.difficulty]}>
-              {scenario.difficulty}
-            </Badge>
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Clock className="w-3 h-3 mr-1" />
-              {scenario.duration}
+
+            {/* Meta & CTA */}
+            <div className="flex items-center gap-4 flex-shrink-0">
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Clock className="w-4 h-4 mr-1" />
+                {scenario.duration}
+              </div>
+              <Link href={`/workspace/${scenario.id}`}>
+                <Button 
+                  className={
+                    scenario.completed
+                      ? "bg-secondary hover:bg-secondary/80"
+                      : "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 glow-cyan"
+                  }
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  {scenario.completed ? "Review" : "Start"}
+                </Button>
+              </Link>
             </div>
-            <Badge variant="outline" className="text-xs">
-              {scenario.category}
-            </Badge>
           </div>
-          <Link href={`/workspace/${scenario.id}`}>
-            <Button 
-              size="sm" 
-              className={
-                scenario.completed
-                  ? "bg-secondary hover:bg-secondary/80"
-                  : "bg-cyan-500 hover:bg-cyan-600 glow-cyan"
-              }
-            >
-              <Play className="w-4 h-4 mr-1" />
-              {scenario.completed ? "Retry" : "Start"}
-            </Button>
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

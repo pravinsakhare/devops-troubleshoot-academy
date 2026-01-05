@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Navigation } from "@/components/layout/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,57 +15,69 @@ import {
   ArrowRight,
   Terminal,
   CheckCircle2,
-  Play
+  Play,
+  Calendar,
+  Zap,
+  Star
 } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
   return (
-    <div className="min-h-screen bg-[#0a0e1a] noise-texture">
+    <div className="min-h-screen bg-[#0a0e1a]">
       <Navigation />
       
       <div className="container mx-auto px-6 py-8">
         {/* Welcome Section */}
-        <div className="mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
           <h1 className="text-4xl font-display font-bold mb-2">
             Welcome back, <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Engineer</span>
           </h1>
           <p className="text-muted-foreground text-lg">
             Continue your journey to mastering Kubernetes troubleshooting
           </p>
-        </div>
+        </motion.div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8"
+        >
           <StatCard
-            icon={<Trophy className="w-6 h-6" />}
+            icon={<Trophy className="w-6 h-6 text-cyan-400" />}
             label="Scenarios Completed"
             value="12"
             change="+3 this week"
             color="cyan"
           />
           <StatCard
-            icon={<Flame className="w-6 h-6" />}
+            icon={<Flame className="w-6 h-6 text-orange-400" />}
             label="Current Streak"
             value="7 days"
             change="Keep it up!"
             color="orange"
           />
           <StatCard
-            icon={<Clock className="w-6 h-6" />}
+            icon={<Clock className="w-6 h-6 text-green-400" />}
             label="Avg. Solve Time"
             value="18 min"
             change="-4 min improved"
             color="green"
           />
           <StatCard
-            icon={<Target className="w-6 h-6" />}
+            icon={<Target className="w-6 h-6 text-purple-400" />}
             label="Accuracy Rate"
             value="87%"
             change="+5% this month"
             color="purple"
           />
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -209,28 +222,33 @@ function StatCard({ icon, label, value, change, color }: {
   change: string;
   color: string;
 }) {
-  const colorClasses = {
-    cyan: "from-cyan-500/20 to-cyan-600/20 border-cyan-500/30",
-    orange: "from-orange-500/20 to-orange-600/20 border-orange-500/30",
-    green: "from-green-500/20 to-green-600/20 border-green-500/30",
-    purple: "from-purple-500/20 to-purple-600/20 border-purple-500/30",
-  }[color];
+  const colorClasses: Record<string, { bg: string; accent: string }> = {
+    cyan: { bg: "from-cyan-500/10 to-cyan-600/5 border-cyan-500/20 hover:border-cyan-500/40", accent: "text-cyan-400" },
+    orange: { bg: "from-orange-500/10 to-orange-600/5 border-orange-500/20 hover:border-orange-500/40", accent: "text-orange-400" },
+    green: { bg: "from-green-500/10 to-green-600/5 border-green-500/20 hover:border-green-500/40", accent: "text-green-400" },
+    purple: { bg: "from-purple-500/10 to-purple-600/5 border-purple-500/20 hover:border-purple-500/40", accent: "text-purple-400" },
+  };
+  
+  const styles = colorClasses[color] || colorClasses.cyan;
 
   return (
-    <Card className={`bg-gradient-to-br ${colorClasses} backdrop-blur-sm hover:-translate-y-1 transition-all duration-300`}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-3">
-          <div className="p-2 rounded-lg bg-card/50">
-            {icon}
+    <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
+      <Card className={`bg-gradient-to-br ${styles.bg} backdrop-blur-sm transition-all duration-300`}>
+        <CardContent className="p-4 md:p-6">
+          <div className="flex items-start justify-between mb-3">
+            <div className="p-2 rounded-lg bg-card/50">
+              {icon}
+            </div>
+            <Star className={`w-4 h-4 ${styles.accent} opacity-50`} />
           </div>
-        </div>
-        <div className="space-y-1">
-          <p className="text-2xl font-display font-bold">{value}</p>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-xs text-cyan-400">{change}</p>
-        </div>
-      </CardContent>
-    </Card>
+          <div className="space-y-1">
+            <p className="text-2xl md:text-3xl font-display font-bold">{value}</p>
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className={`text-xs ${styles.accent}`}>{change}</p>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 

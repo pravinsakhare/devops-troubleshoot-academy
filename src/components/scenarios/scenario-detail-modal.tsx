@@ -3,32 +3,32 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Target, Trophy, Play, CheckCircle2 } from "lucide-react";
+import { Clock, Target, Trophy, Play, CheckCircle2, Users, Star, BookOpen } from "lucide-react";
 import Link from "next/link";
 
 interface ScenarioDetailModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   scenario: {
     id: number;
     title: string;
     description: string;
-    difficulty: string;
+    difficulty: "Beginner" | "Intermediate" | "Advanced";
     duration: string;
     category: string;
-    completed: boolean;
+    completed?: boolean;
   };
 }
 
-export function ScenarioDetailModal({ isOpen, onClose, scenario }: ScenarioDetailModalProps) {
+export function ScenarioDetailModal({ open, onOpenChange, scenario }: ScenarioDetailModalProps) {
   const difficultyColors: Record<string, string> = {
-    Beginner: "bg-green-500/20 text-green-400 border-green-500/30",
-    Intermediate: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-    Advanced: "bg-red-500/20 text-red-400 border-red-500/30",
+    Beginner: "badge-beginner",
+    Intermediate: "badge-intermediate",
+    Advanced: "badge-advanced",
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card/95 backdrop-blur-xl border-cyan-500/30 max-w-2xl">
         <DialogHeader>
           <div className="flex items-start justify-between mb-2">

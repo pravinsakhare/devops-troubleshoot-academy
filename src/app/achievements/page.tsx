@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Navigation } from "@/components/layout/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -131,12 +132,16 @@ export default function AchievementsPage() {
   const rareCount = achievements.filter(a => a.rarity === "rare" && a.unlocked).length;
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] noise-texture">
+    <div className="min-h-screen bg-[#0a0e1a]">
       <Navigation />
       
       <div className="container mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
           <h1 className="text-4xl font-display font-bold mb-2">
             <span className="bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
               Achievements
@@ -145,7 +150,7 @@ export default function AchievementsPage() {
           <p className="text-muted-foreground text-lg">
             Track your progress and unlock badges as you master K8s troubleshooting
           </p>
-        </div>
+        </motion.div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
