@@ -1,15 +1,15 @@
+"use client";
+
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import {
-  HeroSection,
-  FeaturesSection,
-  TestimonialsSection,
-  ToolsSection,
-  PricingSection,
-  CTASection,
-  LearningPathsSection,
-  StatsSection,
-} from "@/components/sections";
+import { HeroSection } from "@/components/sections/hero";
+import { StatsSection } from "@/components/sections/stats";
+import { FeaturesSection } from "@/components/sections/features";
+import { LearningPathsSection } from "@/components/sections/learning-paths";
+import { ToolsSection } from "@/components/sections/tools";
+import { TestimonialsSection } from "@/components/sections/testimonials";
+import { PricingSection } from "@/components/sections/pricing";
+import { CTASection } from "@/components/sections/cta";
 
 export default function Page() {
   return (

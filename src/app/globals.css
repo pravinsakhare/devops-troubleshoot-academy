@@ -420,4 +420,67 @@
   .text-responsive-section {
     @apply text-2xl sm:text-3xl md:text-4xl;
   }
+
+  /* Hint drawer animations */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slide-in-from-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  @keyframes slide-in-from-left {
+    from { 
+      opacity: 0;
+      transform: translateX(-8px); 
+    }
+    to { 
+      opacity: 1;
+      transform: translateX(0); 
+    }
+  }
+
+  .animate-in {
+    animation-duration: 200ms;
+    animation-fill-mode: forwards;
+  }
+
+  .fade-in {
+    animation-name: fade-in;
+  }
+
+  .slide-in-from-right {
+    animation-name: slide-in-from-right;
+  }
+
+  .slide-in-from-left-2 {
+    animation-name: slide-in-from-left;
+  }
+
+  .duration-200 {
+    animation-duration: 200ms;
+  }
+
+  .duration-300 {
+    animation-duration: 300ms;
+  }
+
+  /* Workspace specific styles */
+  .workspace-grid-pattern {
+    background-image: radial-gradient(circle at 1px 1px, rgba(14, 165, 233, 0.15) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+
+  /* Terminal cursor blink */
+  @keyframes cursor-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  .terminal-cursor {
+    animation: cursor-blink 1s step-end infinite;
+  }
 }

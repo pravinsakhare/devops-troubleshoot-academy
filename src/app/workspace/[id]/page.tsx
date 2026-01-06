@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,9 @@ import {
   FileCode,
   AlertCircle,
   ChevronRight,
-  Play
+  Play,
+  Sparkles,
+  Zap
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -31,6 +33,7 @@ export default function WorkspacePage({ params }: { params: { id: string } }) {
   const [currentHintLevel, setCurrentHintLevel] = useState(0);
   const [isHintDrawerOpen, setIsHintDrawerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const hintDrawerRef = useRef<HTMLDivElement>(null);
 
   const hints = [
     "Start by checking the pod status using `kubectl get pods`",
@@ -39,6 +42,25 @@ export default function WorkspacePage({ params }: { params: { id: string } }) {
     "Verify resource limits and requests are properly configured",
     "The issue is with the container's command - check the pod spec",
   ];
+
+  // Close hint drawer with ESC key
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape" && isHintDrawerOpen) {
+      setIsHintDrawerOpen(false);
+    }
+  }, [isHintDrawerOpen]);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Close hint drawer when clicking outside
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setIsHintDrawerOpen(false);
+    }
+  };
 
   useEffect(() => {
     // Get user ID from localStorage (set after Supabase auth)
@@ -141,131 +163,193 @@ export default function WorkspacePage({ params }: { params: { id: string } }) {
   return (
     <>
       <MobileWarning />
-      <div className="h-screen bg-[#0a0e1a] flex flex-col overflow-hidden noise-texture">
+      <div className="h-screen bg-[#050810] flex flex-col overflow-hidden">
+        {/* Animated Background Grid */}
+        <div 
+          className="fixed inset-0 pointer-events-none opacity-[0.03]"
+          style={{
+            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(14, 165, 233, 0.5) 1px, transparent 0)`,
+            backgroundSize: '32px 32px'
+          }}
+        />
+        
         {/* Header */}
-        <div className="border-b border-border/20 bg-card/50 backdrop-blur-xl">
-        <div className="px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <h2 className="font-display font-semibold text-lg">
-                Pod CrashLoopBackOff Mystery
-              </h2>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span className="font-mono">{formatTime(timeElapsed)}</span>
+        <div className="relative z-10 border-b border-cyan-500/10 bg-gradient-to-r from-[#0a0e1a]/95 via-[#0d1220]/95 to-[#0a0e1a]/95 backdrop-blur-xl">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              {/* Left Section - Title & Stats */}
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <h2 className="font-display font-bold text-xl tracking-tight text-white">
+                    Pod CrashLoopBackOff Mystery
+                  </h2>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Lightbulb className="w-4 h-4" />
-                  <span>{hintsUsed} hints used</span>
+                
+                <div className="flex items-center gap-1 h-8">
+                  <div className="h-full w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent" />
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <TerminalIcon className="w-4 h-4" />
-                  <span>{commandCount} commands</span>
+                
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                    <Clock className="w-4 h-4 text-cyan-400" />
+                    <span className="font-mono text-sm font-medium text-slate-200">{formatTime(timeElapsed)}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                    <Lightbulb className="w-4 h-4 text-amber-400" />
+                    <span className="text-sm text-slate-200">{hintsUsed} hints used</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                    <TerminalIcon className="w-4 h-4 text-emerald-400" />
+                    <span className="text-sm text-slate-200">{commandCount} commands</span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-secondary/50">
-                <span className="text-sm text-muted-foreground">Progress</span>
-                <div className="w-32">
-                  <Progress value={progress} className="h-2" />
+              
+              {/* Right Section - Progress & Actions */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 px-5 py-2.5 rounded-xl bg-gradient-to-r from-slate-800/70 to-slate-800/50 border border-slate-700/50">
+                  <span className="text-sm font-medium text-slate-400">Progress</span>
+                  <div className="w-40 h-2.5 bg-slate-900 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-bold text-white min-w-[40px]">{progress}%</span>
                 </div>
-                <span className="text-sm font-semibold">{progress}%</span>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-slate-700 bg-slate-800/50 hover:bg-slate-700/50 text-slate-200 hover:text-white transition-all duration-200"
+                  onClick={saveProgress}
+                  disabled={isSaving}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {isSaving ? "Saving..." : "Save"}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-slate-400 hover:text-white hover:bg-red-500/10 transition-all duration-200"
+                  onClick={handleExit}
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Exit
+                </Button>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="border-border/20"
-                onClick={saveProgress}
-                disabled={isSaving}
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {isSaving ? "Saving..." : "Save"}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleExit}>
-                <X className="w-4 h-4 mr-2" />
-                Exit
-              </Button>
             </div>
           </div>
         </div>
-      </div>
 
       {/* Main Workspace */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative z-10">
         <ResizablePanelGroup direction="horizontal">
           {/* Left Panel - Problem Description */}
           <ResizablePanel defaultSize={40} minSize={30}>
-            <div className="h-full flex flex-col bg-secondary/20">
+            <div className="h-full flex flex-col bg-gradient-to-b from-[#0a0e1a] to-[#0d1220]">
               <Tabs defaultValue="description" className="flex-1 flex flex-col">
-                <div className="border-b border-border/20 px-6 pt-4">
-                  <TabsList className="bg-secondary/50">
-                    <TabsTrigger value="description">Description</TabsTrigger>
-                    <TabsTrigger value="manifests">Manifests</TabsTrigger>
-                    <TabsTrigger value="resources">Resources</TabsTrigger>
+                <div className="border-b border-slate-700/50 px-6 pt-5 pb-4">
+                  <TabsList className="bg-slate-800/50 border border-slate-700/50 p-1">
+                    <TabsTrigger 
+                      value="description" 
+                      className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 data-[state=active]:border-cyan-500/30 transition-all duration-200"
+                    >
+                      Description
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="manifests"
+                      className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 data-[state=active]:border-cyan-500/30 transition-all duration-200"
+                    >
+                      Manifests
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="resources"
+                      className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 data-[state=active]:border-cyan-500/30 transition-all duration-200"
+                    >
+                      Resources
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
                 <div className="flex-1 overflow-auto p-6">
-                  <TabsContent value="description" className="mt-0 space-y-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <AlertCircle className="w-5 h-5 text-red-400" />
-                        <h3 className="font-display font-semibold text-lg">Problem Statement</h3>
+                  <TabsContent value="description" className="mt-0 space-y-6">
+                    {/* Problem Statement Card */}
+                    <div className="rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 p-5">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                          <AlertCircle className="w-5 h-5 text-red-400" />
+                        </div>
+                        <h3 className="font-display font-bold text-lg text-white">Problem Statement</h3>
                       </div>
-                      <p className="text-muted-foreground leading-relaxed mb-4">
-                        A critical application pod named <code className="px-2 py-1 rounded bg-black/50 text-cyan-400 font-mono text-sm">payment-service</code> in the <code className="px-2 py-1 rounded bg-black/50 text-cyan-400 font-mono text-sm">production</code> namespace keeps restarting. 
+                      <p className="text-slate-300 leading-relaxed mb-4">
+                        A critical application pod named <code className="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 font-mono text-sm border border-cyan-500/20">payment-service</code> in the <code className="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 font-mono text-sm border border-cyan-500/20">production</code> namespace keeps restarting. 
                         Users are reporting intermittent payment failures.
                       </p>
-                      <p className="text-muted-foreground leading-relaxed">
+                      <p className="text-slate-400 leading-relaxed">
                         Your task is to identify why the pod is crashing and fix the issue. The cluster is accessible via the terminal on the right.
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                      <div className="flex items-start gap-2">
-                        <Lightbulb className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    {/* Success Criteria Card */}
+                    <div className="rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20 p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                          <Lightbulb className="w-5 h-5 text-amber-400" />
+                        </div>
                         <div>
-                          <h4 className="font-semibold text-yellow-400 mb-1">Success Criteria</h4>
-                          <ul className="text-sm text-muted-foreground space-y-1">
-                            <li>• Pod must be in Running state</li>
-                            <li>• Container must not be restarting</li>
-                            <li>• Application must pass health checks</li>
+                          <h4 className="font-display font-semibold text-amber-400 mb-3">Success Criteria</h4>
+                          <ul className="space-y-2.5">
+                            <li className="flex items-center gap-2.5 text-sm text-slate-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Pod must be in Running state
+                            </li>
+                            <li className="flex items-center gap-2.5 text-sm text-slate-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Container must not be restarting
+                            </li>
+                            <li className="flex items-center gap-2.5 text-sm text-slate-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Application must pass health checks
+                            </li>
                           </ul>
                         </div>
                       </div>
                     </div>
 
-                    <div>
-                      <h4 className="font-display font-semibold mb-2">Environment Details</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center justify-between p-2 rounded bg-secondary/30">
-                          <span className="text-muted-foreground">Namespace:</span>
-                          <code className="font-mono text-cyan-400">production</code>
+                    {/* Environment Details Card */}
+                    <div className="rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 p-5">
+                      <h4 className="font-display font-semibold text-white mb-4">Environment Details</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/50 border border-slate-700/30">
+                          <span className="text-slate-400">Namespace:</span>
+                          <code className="font-mono text-cyan-400 font-medium">production</code>
                         </div>
-                        <div className="flex items-center justify-between p-2 rounded bg-secondary/30">
-                          <span className="text-muted-foreground">Pod Name:</span>
-                          <code className="font-mono text-cyan-400">payment-service</code>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/50 border border-slate-700/30">
+                          <span className="text-slate-400">Pod Name:</span>
+                          <code className="font-mono text-cyan-400 font-medium">payment-service</code>
                         </div>
-                        <div className="flex items-center justify-between p-2 rounded bg-secondary/30">
-                          <span className="text-muted-foreground">Cluster Version:</span>
-                          <code className="font-mono text-cyan-400">1.28</code>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/50 border border-slate-700/30">
+                          <span className="text-slate-400">Cluster Version:</span>
+                          <code className="font-mono text-cyan-400 font-medium">1.28</code>
                         </div>
                       </div>
                     </div>
                   </TabsContent>
 
                   <TabsContent value="manifests" className="mt-0 space-y-4">
-                    <div>
-                      <h3 className="font-display font-semibold text-lg mb-3 flex items-center">
-                        <FileCode className="w-5 h-5 mr-2 text-cyan-400" />
-                        Pod Manifest
-                      </h3>
-                      <div className="rounded-lg overflow-hidden border border-border/20">
-                        <div className="bg-black/80 p-4 overflow-x-auto">
-                          <pre className="font-mono text-sm">
-                            <code className="text-gray-300">
+                    <div className="rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 overflow-hidden">
+                      <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-700/50">
+                        <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                          <FileCode className="w-4 h-4 text-cyan-400" />
+                        </div>
+                        <h3 className="font-display font-semibold text-white">Pod Manifest</h3>
+                      </div>
+                      <div className="p-1">
+                        <div className="bg-[#0d0d0d] rounded-lg p-4 overflow-x-auto">
+                          <pre className="font-mono text-sm leading-relaxed">
+                            <code className="text-slate-300">
 {`apiVersion: v1
 kind: Pod
 metadata:
@@ -300,9 +384,9 @@ spec:
                   </TabsContent>
 
                   <TabsContent value="resources" className="mt-0 space-y-4">
-                    <div>
-                      <h3 className="font-display font-semibold text-lg mb-3">Useful Commands</h3>
-                      <div className="space-y-2">
+                    <div className="rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 p-5">
+                      <h3 className="font-display font-semibold text-white mb-4">Useful Commands</h3>
+                      <div className="space-y-3">
                         <CommandCard
                           command="kubectl get pods -n production"
                           description="List all pods in the production namespace"
@@ -327,7 +411,7 @@ spec:
             </div>
           </ResizablePanel>
 
-          <ResizableHandle className="w-1 bg-border/20 hover:bg-cyan-500/30 transition-colors" />
+          <ResizableHandle className="w-1.5 bg-slate-800 hover:bg-cyan-500/50 transition-colors duration-200" />
 
           {/* Right Panel - Terminal */}
           <ResizablePanel defaultSize={60} minSize={30}>
@@ -341,64 +425,126 @@ spec:
         </ResizablePanelGroup>
       </div>
 
-      {/* Hint Button */}
-      <Button
-        className={`
-          fixed bottom-6 right-6 h-14 px-6 rounded-full shadow-lg
-          ${currentHintLevel < hints.length 
-            ? "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 animate-pulse-glow" 
-            : "bg-secondary cursor-not-allowed"
-          }
-        `}
-        onClick={handleGetHint}
-        disabled={currentHintLevel >= hints.length}
-      >
-        <Lightbulb className="w-5 h-5 mr-2" />
-        {currentHintLevel === 0 ? "Get Hint" : `Hint ${currentHintLevel + 1}/${hints.length}`}
-      </Button>
-
-      {/* Hint Drawer */}
-      {isHintDrawerOpen && (
-        <div 
+      {/* Hint Button - Floating Action Button */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
+        <Button
           className={`
-            fixed top-0 right-0 h-full w-96 bg-card/95 backdrop-blur-xl border-l border-border/20 
-            shadow-2xl z-50 transform transition-transform duration-400
-            ${isHintDrawerOpen ? "translate-x-0" : "translate-x-full"}
+            group relative h-14 px-8 rounded-full shadow-2xl font-semibold text-base
+            transition-all duration-300 ease-out transform hover:scale-105
+            ${currentHintLevel < hints.length 
+              ? "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-400 hover:via-orange-400 hover:to-amber-400 text-black shadow-amber-500/25" 
+              : "bg-slate-700 text-slate-400 cursor-not-allowed shadow-none"
+            }
           `}
+          onClick={handleGetHint}
+          disabled={currentHintLevel >= hints.length}
         >
-          <div className="flex flex-col h-full">
-            <div className="p-6 border-b border-border/20">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-display font-semibold text-lg flex items-center">
-                  <Lightbulb className="w-5 h-5 mr-2 text-yellow-400" />
-                  Hints
-                </h3>
-                <Button variant="ghost" size="sm" onClick={() => setIsHintDrawerOpen(false)}>
-                  <X className="w-4 h-4" />
+          {currentHintLevel < hints.length && (
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-300" />
+          )}
+          <div className="relative flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentHintLevel < hints.length ? "bg-black/20" : "bg-slate-600"}`}>
+              <Lightbulb className="w-4 h-4" />
+            </div>
+            <span>
+              {currentHintLevel === 0 ? "Get Hint" : `Hint ${currentHintLevel}/${hints.length}`}
+            </span>
+            {currentHintLevel > 0 && currentHintLevel < hints.length && (
+              <ChevronRight className="w-4 h-4" />
+            )}
+          </div>
+        </Button>
+      </div>
+
+      {/* Hint Drawer with Overlay */}
+      {isHintDrawerOpen && (
+        <>
+          {/* Backdrop overlay - click to close */}
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-in fade-in duration-200"
+            onClick={handleOverlayClick}
+          />
+          
+          {/* Hint Drawer */}
+          <div 
+            ref={hintDrawerRef}
+            className="fixed top-0 right-0 h-full w-[420px] max-w-full bg-gradient-to-b from-[#0f1419] to-[#0a0e14] border-l border-cyan-500/20 shadow-2xl shadow-cyan-500/5 z-50 animate-in slide-in-from-right duration-300"
+          >
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="p-6 border-b border-slate-700/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center border border-amber-500/30">
+                      <Lightbulb className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-display font-bold text-lg text-white">Hints</h3>
+                      <p className="text-xs text-slate-400">{currentHintLevel} of {hints.length} revealed</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setIsHintDrawerOpen(false)}
+                    className="h-9 w-9 p-0 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-sm text-slate-400">
+                  Progressive clues to help you solve the scenario. Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-mono">ESC</kbd> to close.
+                </p>
+              </div>
+
+              {/* Hints List */}
+              <div className="flex-1 overflow-auto p-6 space-y-4">
+                {hints.slice(0, currentHintLevel).map((hint, index) => (
+                  <div 
+                    key={index}
+                    className="p-4 rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 animate-in slide-in-from-right duration-300"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Badge className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-amber-500/30 font-semibold px-3 py-1">
+                        {index + 1}
+                      </Badge>
+                      <p className="text-sm text-slate-200 leading-relaxed flex-1">{hint}</p>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Remaining hints indicator */}
+                {currentHintLevel < hints.length && (
+                  <div className="flex items-center gap-2 text-slate-500 text-sm pt-2">
+                    <Sparkles className="w-4 h-4" />
+                    <span>{hints.length - currentHintLevel} more hint{hints.length - currentHintLevel > 1 ? 's' : ''} available</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-slate-700/50">
+                <Button
+                  className="w-full h-12 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-semibold rounded-xl transition-all duration-200"
+                  onClick={() => {
+                    handleGetHint();
+                  }}
+                  disabled={currentHintLevel >= hints.length}
+                >
+                  {currentHintLevel >= hints.length ? (
+                    "All hints revealed"
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 mr-2" />
+                      Reveal Next Hint
+                    </>
+                  )}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Progressive clues to help you solve the scenario
-              </p>
-            </div>
-
-            <div className="flex-1 overflow-auto p-6 space-y-4">
-              {hints.slice(0, currentHintLevel).map((hint, index) => (
-                <div 
-                  key={index}
-                  className="p-4 rounded-lg bg-secondary/50 border border-border/20 animate-fade-in"
-                >
-                  <div className="flex items-start gap-2">
-                    <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 flex-shrink-0">
-                      Hint {index + 1}
-                    </Badge>
-                    <p className="text-sm text-foreground flex-1">{hint}</p>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
-        </div>
+        </>
       )}
       </div>
     </>
@@ -406,10 +552,28 @@ spec:
 }
 
 function CommandCard({ command, description }: { command: string; description: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(command);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="p-3 rounded-lg bg-secondary/30 border border-border/20 hover:border-cyan-500/30 transition-colors group cursor-pointer">
-      <code className="font-mono text-sm text-cyan-400 block mb-1">{command}</code>
-      <p className="text-xs text-muted-foreground">{description}</p>
+    <div 
+      className="group p-4 rounded-lg bg-slate-900/50 border border-slate-700/30 hover:border-cyan-500/40 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer"
+      onClick={handleCopy}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <code className="font-mono text-sm text-cyan-400 block mb-1.5 break-all">{command}</code>
+          <p className="text-xs text-slate-500">{description}</p>
+        </div>
+        <div className={`text-xs px-2 py-1 rounded transition-all duration-200 ${copied ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-800 text-slate-400 opacity-0 group-hover:opacity-100"}`}>
+          {copied ? "Copied!" : "Copy"}
+        </div>
+      </div>
     </div>
   );
 }
@@ -516,52 +680,66 @@ function TerminalEmulator({
   };
 
   return (
-    <div className="h-full flex flex-col bg-black border-l-2 border-cyan-500/30">
-      <div className="px-6 py-2 bg-secondary/30 border-b border-border/20 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <TerminalIcon className="w-4 h-4 text-cyan-400" />
-          <span className="font-mono text-sm text-muted-foreground">kubectl terminal</span>
+    <div className="h-full flex flex-col bg-[#0a0a0a]">
+      {/* Terminal Header */}
+      <div className="px-5 py-3 bg-gradient-to-r from-slate-900 to-slate-800 border-b border-slate-700/50 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+            <TerminalIcon className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div>
+            <span className="font-mono text-sm text-slate-200 font-medium">kubectl terminal</span>
+            <span className="text-xs text-slate-500 ml-2">production-cluster</span>
+          </div>
         </div>
         <div className="flex gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500/50" />
-          <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
-          <div className="w-3 h-3 rounded-full bg-green-500/50" />
+          <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/30" />
+          <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-lg shadow-yellow-500/30" />
+          <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/30" />
         </div>
       </div>
 
+      {/* Terminal Content */}
       <div 
         ref={terminalRef}
-        className="flex-1 overflow-auto p-4 font-mono text-sm"
+        className="flex-1 overflow-auto p-5 font-mono text-sm leading-relaxed bg-[#0a0a0a]"
         onClick={() => inputRef.current?.focus()}
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(14, 165, 233, 0.02) 1px, transparent 1px)
+          `,
+          backgroundSize: '100% 24px'
+        }}
       >
         {history.map((item, index) => (
-          <div key={index} className="mb-1">
+          <div key={index} className="mb-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
             {item.type === 'input' ? (
               <div className="flex items-center">
-                <span className="text-cyan-400 mr-2">$</span>
-                <span className="text-gray-300">{item.text}</span>
+                <span className="text-cyan-400 mr-2 select-none">$</span>
+                <span className="text-slate-200">{item.text}</span>
               </div>
             ) : item.type === 'error' ? (
-              <div className="text-red-400">{item.text}</div>
+              <div className="text-red-400 pl-4">{item.text}</div>
             ) : (
-              <div className="text-matrix-green">{item.text}</div>
+              <div className="text-emerald-400 pl-4">{item.text}</div>
             )}
           </div>
         ))}
 
-        <form onSubmit={handleSubmit} className="flex items-center mt-2">
-          <span className="text-cyan-400 mr-2">$</span>
+        {/* Input Line */}
+        <form onSubmit={handleSubmit} className="flex items-center mt-3 group">
+          <span className="text-cyan-400 mr-2 select-none">$</span>
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 bg-transparent outline-none text-gray-300"
+            className="flex-1 bg-transparent outline-none text-slate-200 caret-emerald-400 placeholder:text-slate-600"
             placeholder="Enter kubectl command..."
             autoFocus
           />
+          <div className="w-2.5 h-5 bg-emerald-400 animate-pulse rounded-sm" />
         </form>
-        <div className="w-2 h-4 bg-matrix-green inline-block animate-pulse ml-1" />
       </div>
     </div>
   );
