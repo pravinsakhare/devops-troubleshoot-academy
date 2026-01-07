@@ -6,30 +6,42 @@ All three major features have been successfully implemented in your DevOps Troub
 
 ---
 
-## Feature 1: Terminal Execution ✅
+## Feature 1: Terminal Execution ✅ (Now with Real kubectl Support!)
 
 **What was added:**
 - Secure kubectl command execution API at `/api/execute-command`
 - Command validation with whitelist of allowed operations
 - Blocks dangerous patterns (pipes, redirects, command substitution, etc.)
-- Mock implementation ready to connect to real Kubernetes cluster
+- **Real kubectl execution support** - toggle between mock and real modes
+- Expanded mock responses for comprehensive development testing
 
 **Key files:**
-- `src/app/api/execute-command/route.ts` - The API endpoint
+- `src/app/api/execute-command/route.ts` - The API endpoint with real/mock modes
 - `src/app/workspace/[id]/page.tsx` - Updated to call the API
 
 **How it works:**
 1. User types kubectl command in terminal
 2. Command is sent to `/api/execute-command` API
 3. Server validates command safety
-4. Returns output or error message
-5. Terminal displays result
+4. Executes via real kubectl OR returns mock data based on `KUBECTL_EXECUTION_MODE`
+5. Terminal displays result with execution mode indicator
 
-**For production:**
-- Replace `executeKubectlCommand()` with real kubectl execution
-- Consider using Docker containers for isolation
-- Add timeout limits and resource restrictions
-- Stream output in real-time with proper buffering
+**Configuration for real kubectl:**
+Set these environment variables:
+- `KUBECTL_EXECUTION_MODE=real` - Enables real kubectl execution (default: "mock")
+- `KUBECTL_TIMEOUT_MS=30000` - Command timeout in milliseconds (default: 30s)
+- `KUBECONFIG=/path/to/config` - Path to kubeconfig file (default: ~/.kube/config)
+
+**Supported kubectl commands:**
+- get, describe, logs, exec, port-forward
+- apply, delete, rollout, status, events
+- top, explain, api-resources, config, version
+
+**Security features:**
+- Whitelist-based command validation
+- Blocked patterns: pipes, redirects, command substitution, chaining
+- Timeout limits to prevent hanging
+- Output buffer limits (1MB max)
 
 ---
 
@@ -223,7 +235,7 @@ Visit http://localhost:3000 and test the features!
 ## What's Next?
 
 ### High Priority
-- [ ] Connect real kubectl cluster to `/api/execute-command`
+- [x] Connect real kubectl cluster to `/api/execute-command` ✅ DONE
 - [ ] Implement actual Supabase auth endpoints
 - [ ] Add error boundaries (src/app/error.tsx)
 - [ ] Create sample scenarios in database

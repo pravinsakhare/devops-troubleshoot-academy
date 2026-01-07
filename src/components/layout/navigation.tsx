@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Terminal, LayoutDashboard, Trophy, User, LogOut, Settings, HelpCircle, Bell, Search } from "lucide-react";
+import { Terminal, LayoutDashboard, Trophy, User, LogOut, Settings, HelpCircle, Bell, Search, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,8 +17,60 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    
+    if (pathname === "/") {
+      // If already on home page, smooth scroll to hero section
+      const heroSection = document.getElementById("hero");
+      if (heroSection) {
+        heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } else {
+      // Navigate to home page and scroll to hero
+      router.push("/");
+      // After navigation, scroll to hero (slight delay for page load)
+      setTimeout(() => {
+        const heroSection = document.getElementById("hero");
+        if (heroSection) {
+          heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  };
+
+  const handleHomeClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    
+    if (pathname === "/") {
+      // If already on home page, smooth scroll to hero section
+      const heroSection = document.getElementById("hero");
+      if (heroSection) {
+        heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } else {
+      // Navigate to home page and scroll to hero
+      router.push("/");
+      // After navigation, scroll to hero (slight delay for page load)
+      setTimeout(() => {
+        const heroSection = document.getElementById("hero");
+        if (heroSection) {
+          heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  };
 
   const navItems = [
+    {
+      href: "/",
+      label: "Home",
+      icon: Home,
+      isButton: true,
+      onClick: handleHomeClick,
+    },
     {
       href: "/dashboard",
       label: "Dashboard",
@@ -41,7 +93,11 @@ export function Navigation() {
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center space-x-3 group">
+          <Link 
+            href="/" 
+            className="flex items-center space-x-3 group"
+            onClick={handleLogoClick}
+          >
             <motion.div 
               whileHover={{ scale: 1.1, rotate: 5 }}
               whileTap={{ scale: 0.95 }}
@@ -58,7 +114,33 @@ export function Navigation() {
           <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
+              
+              if (item.isButton) {
+                return (
+                  <Button
+                    key={item.href}
+                    variant="ghost"
+                    onClick={item.onClick}
+                    className={`
+                      relative px-4 py-2 transition-all duration-300
+                      ${isActive 
+                        ? "text-cyan-400" 
+                        : "text-muted-foreground hover:text-foreground"
+                      }
+                    `}
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    {item.label}
+                    {isActive && (
+                      <motion.div 
+                        layoutId="nav-indicator"
+                        className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-cyan-500 to-transparent" 
+                      />
+                    )}
+                  </Button>
+                );
+              }
               
               return (
                 <Link key={item.href} href={item.href}>
@@ -88,6 +170,17 @@ export function Navigation() {
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-2">
+            {/* Home - Navigate to Main Landing Page */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleHomeClick}
+              className="text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
+              title="Go to Homepage"
+            >
+              <Home className="w-5 h-5" />
+            </Button>
+
             {/* Search */}
             <Button
               variant="ghost"

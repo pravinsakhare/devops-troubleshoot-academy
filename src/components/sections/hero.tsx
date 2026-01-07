@@ -72,6 +72,7 @@ export function HeroSection() {
 
   return (
     <section
+      id="hero"
       ref={containerRef}
       className="relative min-h-screen overflow-hidden bg-[#0a0e1a]"
     >
