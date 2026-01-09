@@ -19,50 +19,6 @@ export function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    
-    if (pathname === "/") {
-      // If already on home page, smooth scroll to hero section
-      const heroSection = document.getElementById("hero");
-      if (heroSection) {
-        heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    } else {
-      // Navigate to home page and scroll to hero
-      router.push("/");
-      // After navigation, scroll to hero (slight delay for page load)
-      setTimeout(() => {
-        const heroSection = document.getElementById("hero");
-        if (heroSection) {
-          heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100);
-    }
-  };
-
-  const handleHomeClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    
-    if (pathname === "/") {
-      // If already on home page, smooth scroll to hero section
-      const heroSection = document.getElementById("hero");
-      if (heroSection) {
-        heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    } else {
-      // Navigate to home page and scroll to hero
-      router.push("/");
-      // After navigation, scroll to hero (slight delay for page load)
-      setTimeout(() => {
-        const heroSection = document.getElementById("hero");
-        if (heroSection) {
-          heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100);
-    }
-  };
-
   const navItems = [
     {
       href: "/",
@@ -88,6 +44,38 @@ export function Navigation() {
     },
   ];
 
+  // ULTIMATE LOGO CLICK HANDLER - Multiple fallback methods
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Logo clicked from:', pathname);
+    
+    // If already on home page, do nothing
+    if (pathname === '/') {
+      console.log('Already on home page');
+      return;
+    }
+    
+    // Method 1: Try Next.js router first
+    try {
+      router.push('/');
+      console.log('Attempted router.push("/")');
+      
+      // Method 2: If router doesn't work after 100ms, force reload
+      setTimeout(() => {
+        if (window.location.pathname !== '/') {
+          console.log('Router failed, forcing window.location');
+          window.location.href = '/';
+        }
+      }, 100);
+    } catch (error) {
+      // Method 3: Fallback to direct navigation
+      console.error('Router failed:', error);
+      window.location.href = '/';
+    }
+  };
+
   return (
     <nav className="border-b border-cyan-500/10 bg-[#0a0e1a]/90 backdrop-blur-xl sticky top-0 z-50">
       <div className="container mx-auto px-6">
@@ -108,9 +96,8 @@ export function Navigation() {
             <span className="text-xl font-display font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent hidden sm:block">
               K8sTroubleshoot
             </span>
-          </Link>
+          </a>
 
-          {/* Main Navigation */}
           <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -168,7 +155,6 @@ export function Navigation() {
             })}
           </div>
 
-          {/* Right Side Actions */}
           <div className="flex items-center space-x-2">
             {/* Home - Navigate to Main Landing Page */}
             <Button
@@ -190,7 +176,6 @@ export function Navigation() {
               <Search className="w-5 h-5" />
             </Button>
 
-            {/* Notifications */}
             <Button
               variant="ghost"
               size="icon"
@@ -200,7 +185,6 @@ export function Navigation() {
               <span className="absolute top-1 right-1 w-2 h-2 bg-cyan-500 rounded-full animate-pulse" />
             </Button>
 
-            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
@@ -241,7 +225,6 @@ export function Navigation() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Mobile Navigation Toggle - for small screens */}
             <div className="md:hidden flex items-center space-x-1">
               {navItems.map((item) => {
                 const Icon = item.icon;

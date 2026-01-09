@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./providers";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -13,14 +12,9 @@ const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
 });
 
-const jetbrainsMono = JetBrains_Mono({ 
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-});
-
 export const metadata: Metadata = {
-  title: "DevOps Troubleshooting Platform",
-  description: "Master Kubernetes troubleshooting through realistic scenarios",
+  title: "K8sTroubleshoot - Master DevOps Troubleshooting",
+  description: "Real-world scenarios. Production-ready solutions. Learn by doing.",
 };
 
 export default function RootLayout({
@@ -28,10 +22,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // NO REDIRECTS HERE - Just render the children
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`} suppressHydrationWarning>
-        <Providers>{children}</Providers>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
+        {children}
       </body>
     </html>
   );
