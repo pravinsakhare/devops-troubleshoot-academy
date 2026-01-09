@@ -25,6 +25,9 @@ import {
   FileText,
   Users,
   Sparkles,
+  Moon,
+  Sun,
+  Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -85,6 +88,28 @@ export function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
 
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    
+    if (pathname === "/") {
+      // If already on home page, smooth scroll to hero section
+      const heroSection = document.getElementById("hero");
+      if (heroSection) {
+        heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } else {
+      // Navigate to home page and scroll to hero
+      router.push("/");
+      // After navigation, scroll to hero (slight delay for page load)
+      setTimeout(() => {
+        const heroSection = document.getElementById("hero");
+        if (heroSection) {
+          heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  };
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -99,6 +124,7 @@ export function Header() {
   }, []);
 
   const navItems = [
+    { href: "/", label: "Home", icon: Home, isButton: true },
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/scenarios", label: "Scenarios", icon: Terminal },
     { href: "/achievements", label: "Achievements", icon: Trophy },
@@ -158,11 +184,11 @@ export function Header() {
           <div className={`flex items-center justify-between transition-all duration-300 ${
             isScrolled ? "h-14" : "h-16"
           }`}>
-            {/* Logo with ultimate fix */}
-            <a 
-              href="/"
+            {/* Logo */}
+            <Link 
+              href="/" 
+              className="flex items-center space-x-3 group"
               onClick={handleLogoClick}
-              className="flex items-center space-x-3 group cursor-pointer"
             >
               <motion.div
                 whileHover={{ scale: 1.1, rotate: 5 }}
@@ -289,7 +315,25 @@ export function Header() {
 
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
+
+                if (item.isButton) {
+                  return (
+                    <Button
+                      key={item.href}
+                      variant="ghost"
+                      onClick={handleLogoClick}
+                      className={`px-4 py-2 transition-all duration-300 ${
+                        isActive
+                          ? "text-cyan-400"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 mr-2" />
+                      {item.label}
+                    </Button>
+                  );
+                }
 
                 return (
                   <Link key={item.href} href={item.href}>
@@ -399,7 +443,27 @@ export function Header() {
               <div className="container mx-auto px-6 py-4 space-y-2">
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = pathname === item.href;
+                  const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
+
+                  if (item.isButton) {
+                    return (
+                      <button
+                        key={item.href}
+                        onClick={(e) => {
+                          handleLogoClick(e as any);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full text-left ${
+                          isActive
+                            ? "bg-cyan-500/10 text-cyan-400"
+                            : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                        }`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span className="font-medium">{item.label}</span>
+                      </button>
+                    );
+                  }
 
                   return (
                     <Link

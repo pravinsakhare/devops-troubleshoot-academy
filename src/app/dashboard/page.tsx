@@ -30,6 +30,7 @@ export default function DashboardPage() {
       <div className="container mx-auto px-6 py-8">
         {/* Welcome Section */}
         <motion.div
+          id="hero"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"

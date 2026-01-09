@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Terminal, LayoutDashboard, Trophy, User, LogOut, Settings, HelpCircle, Bell, Search } from "lucide-react";
+import { Terminal, LayoutDashboard, Trophy, User, LogOut, Settings, HelpCircle, Bell, Search, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,6 +20,13 @@ export function Navigation() {
   const router = useRouter();
 
   const navItems = [
+    {
+      href: "/",
+      label: "Home",
+      icon: Home,
+      isButton: true,
+      onClick: handleHomeClick,
+    },
     {
       href: "/dashboard",
       label: "Dashboard",
@@ -73,11 +80,11 @@ export function Navigation() {
     <nav className="border-b border-cyan-500/10 bg-[#0a0e1a]/90 backdrop-blur-xl sticky top-0 z-50">
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
-          {/* Logo with ultimate fix */}
-          <a 
-            href="/"
+          {/* Logo */}
+          <Link 
+            href="/" 
+            className="flex items-center space-x-3 group"
             onClick={handleLogoClick}
-            className="flex items-center space-x-3 group cursor-pointer"
           >
             <motion.div 
               whileHover={{ scale: 1.1, rotate: 5 }}
@@ -94,7 +101,33 @@ export function Navigation() {
           <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
+              
+              if (item.isButton) {
+                return (
+                  <Button
+                    key={item.href}
+                    variant="ghost"
+                    onClick={item.onClick}
+                    className={`
+                      relative px-4 py-2 transition-all duration-300
+                      ${isActive 
+                        ? "text-cyan-400" 
+                        : "text-muted-foreground hover:text-foreground"
+                      }
+                    `}
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    {item.label}
+                    {isActive && (
+                      <motion.div 
+                        layoutId="nav-indicator"
+                        className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-cyan-500 to-transparent" 
+                      />
+                    )}
+                  </Button>
+                );
+              }
               
               return (
                 <Link key={item.href} href={item.href}>
@@ -123,6 +156,18 @@ export function Navigation() {
           </div>
 
           <div className="flex items-center space-x-2">
+            {/* Home - Navigate to Main Landing Page */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleHomeClick}
+              className="text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
+              title="Go to Homepage"
+            >
+              <Home className="w-5 h-5" />
+            </Button>
+
+            {/* Search */}
             <Button
               variant="ghost"
               size="icon"
