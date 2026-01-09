@@ -6,3 +6,5 @@ export { PricingSection } from "./pricing";
 export { CTASection } from "./cta";
 export { LearningPathsSection } from "./learning-paths";
 export { StatsSection } from "./stats";
+export { PlatformOverviewSection } from "./platform-overview";
+export { TrustIndicatorsSection } from "./trust-indicators";

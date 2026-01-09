@@ -19,6 +19,46 @@ export function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Home click handler - navigates to home page
+  const handleHomeClick = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    console.log('Home clicked from:', pathname);
+    
+    // If already on home page, scroll to top
+    if (pathname === '/') {
+      console.log('Already on home page, scrolling to top');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    
+    // Navigate to home page
+    try {
+      router.push('/');
+      console.log('Attempted router.push("/")');
+      
+      // Fallback: If router doesn't work after 100ms, force reload
+      setTimeout(() => {
+        if (window.location.pathname !== '/') {
+          console.log('Router failed, forcing window.location');
+          window.location.href = '/';
+        }
+      }, 100);
+    } catch (error) {
+      // Fallback to direct navigation
+      console.error('Router failed:', error);
+      window.location.href = '/';
+    }
+  };
+
+  // Logo click handler - same as home click
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    handleHomeClick(e);
+  };
+
   const navItems = [
     {
       href: "/",
@@ -44,38 +84,6 @@ export function Navigation() {
     },
   ];
 
-  // ULTIMATE LOGO CLICK HANDLER - Multiple fallback methods
-  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('Logo clicked from:', pathname);
-    
-    // If already on home page, do nothing
-    if (pathname === '/') {
-      console.log('Already on home page');
-      return;
-    }
-    
-    // Method 1: Try Next.js router first
-    try {
-      router.push('/');
-      console.log('Attempted router.push("/")');
-      
-      // Method 2: If router doesn't work after 100ms, force reload
-      setTimeout(() => {
-        if (window.location.pathname !== '/') {
-          console.log('Router failed, forcing window.location');
-          window.location.href = '/';
-        }
-      }, 100);
-    } catch (error) {
-      // Method 3: Fallback to direct navigation
-      console.error('Router failed:', error);
-      window.location.href = '/';
-    }
-  };
-
   return (
     <nav className="border-b border-cyan-500/10 bg-[#0a0e1a]/90 backdrop-blur-xl sticky top-0 z-50">
       <div className="container mx-auto px-6">
@@ -96,7 +104,7 @@ export function Navigation() {
             <span className="text-xl font-display font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent hidden sm:block">
               K8sTroubleshoot
             </span>
-          </a>
+          </Link>
 
           <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
@@ -229,6 +237,20 @@ export function Navigation() {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                
+                if (item.isButton) {
+                  return (
+                    <Button
+                      key={item.href}
+                      variant="ghost"
+                      size="icon"
+                      onClick={item.onClick}
+                      className={isActive ? "text-cyan-400" : "text-muted-foreground"}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </Button>
+                  );
+                }
                 
                 return (
                   <Link key={item.href} href={item.href}>

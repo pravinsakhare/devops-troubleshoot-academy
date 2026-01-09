@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  k8s-lab:
+    image: kindest/node:v1.28.0
+    privileged: true
+    ports:
+      - "6443:6443"
+    volumes:
+      - kind-data:/var/lib/docker
+    environment:
+      - KIND_EXPERIMENTAL_DOCKER_NETWORK=bridge
+
+  terminal-sandbox:
+    image: node:18-alpine
+    command: bash -c "apk add kubectl && node /app/backend/terminal-server.js"
+    ports:
+      - "4000:4000"
+    environment:
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+      - ./src/backend:/app/backend
+      - kind-kubeconfig:/root/.kube
+    depends_on:
+      - k8s-lab
+
+volumes:
+  kind-data:
+  kind-kubeconfig:

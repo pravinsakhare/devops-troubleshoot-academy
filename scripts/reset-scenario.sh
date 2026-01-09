@@ -1,0 +1,52 @@
+#!/bin/bash
+
+set -e
+
+echo "🔄 Resetting scenario..."
+
+# Delete the pod
+kubectl delete pod payment-service -n production --ignore-not-found=true
+
+# Wait for deletion
+sleep 2
+
+# Recreate the pod
+echo "Recreating payment-service pod..."
+kubectl apply -f - <<'YAML'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: payment-service
+  namespace: production
+  labels:
+    app: payment-service
+    version: v1.2.0
+spec:
+  containers:
+  - name: payment
+    image: alpine:latest
+    command: ["sh", "-c", "exit 1"]
+    ports:
+    - containerPort: 8080
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+    env:
+    - name: DATABASE_URL
+      value: "postgres://db:5432/payments"
+    - name: API_KEY
+      value: "test-key-12345"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 10
+YAML
+
+echo "✓ Scenario reset complete"
+kubectl get pods -n production

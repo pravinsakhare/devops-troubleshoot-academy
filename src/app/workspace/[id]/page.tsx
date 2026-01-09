@@ -2,10 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { 
   X, 
   Save, 
@@ -15,13 +13,13 @@ import {
   FileCode,
   AlertCircle,
   ChevronRight,
-  Play,
   Sparkles,
   Zap
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { MobileWarning } from "@/components/common/mobile-warning";
+import TerminalEmulator from "./terminal-emulator";
 
 export default function WorkspacePage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -36,11 +34,11 @@ export default function WorkspacePage({ params }: { params: { id: string } }) {
   const hintDrawerRef = useRef<HTMLDivElement>(null);
 
   const hints = [
-    "Start by checking the pod status using `kubectl get pods`",
-    "Look at the pod logs to identify any error messages",
-    "Check if the container image is correct and accessible",
-    "Verify resource limits and requests are properly configured",
-    "The issue is with the container's command - check the pod spec",
+    "Start by checking the pod status using `kubectl get pods -n production`",
+    "Look at the pod logs to identify any error messages using `kubectl logs payment-service -n production`",
+    "Check if the container is crashing immediately - review the container command",
+    "The issue is with the container's command - it's set to `exit 1` which immediately crashes",
+    "Fix the pod manifest to use a proper working command instead of `exit 1`",
   ];
 
   // Close hint drawer with ESC key
@@ -417,6 +415,7 @@ spec:
           <ResizablePanel defaultSize={60} minSize={30}>
             <div className="h-full flex flex-col">
               <TerminalEmulator 
+                workspaceId={params.id}
                 onCommandSubmit={() => setCommandCount(prev => prev + 1)}
                 onProgressUpdate={(newProgress) => setProgress(newProgress)}
               />
@@ -573,173 +572,6 @@ function CommandCard({ command, description }: { command: string; description: s
         <div className={`text-xs px-2 py-1 rounded transition-all duration-200 ${copied ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-800 text-slate-400 opacity-0 group-hover:opacity-100"}`}>
           {copied ? "Copied!" : "Copy"}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function TerminalEmulator({ 
-  onCommandSubmit, 
-  onProgressUpdate 
-}: { 
-  onCommandSubmit: () => void;
-  onProgressUpdate: (progress: number) => void;
-}) {
-  const [input, setInput] = useState("");
-  const [history, setHistory] = useState<Array<{ type: 'input' | 'output' | 'error'; text: string }>>([
-    { type: 'output', text: 'Welcome to K8s Troubleshooting Terminal' },
-    { type: 'output', text: 'Connected to cluster: production-cluster' },
-    { type: 'output', text: 'Type your kubectl commands below...\n' },
-  ]);
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [history]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    setHistory(prev => [...prev, { type: 'input', text: input }]);
-    onCommandSubmit();
-
-    // Simulate command execution
-    setTimeout(() => {
-      simulateCommand(input).then(output => {
-        setHistory(prev => [...prev, ...output]);
-        
-        // Update progress based on correct commands
-        if (input.includes('get pods') || input.includes('describe') || input.includes('logs')) {
-          onProgressUpdate(Math.min(100, progress + 10));
-        }
-      });
-    }, 300);
-
-    setInput("");
-  };
-
-  const simulateCommand = async (cmd: string): Promise<Array<{ type: 'input' | 'output' | 'error'; text: string }>> => {
-    try {
-      const response = await fetch("/api/execute-command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          command: cmd,
-          workspaceId: params.id,
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        return [{ type: 'error', text: data.error || "Command execution failed" }];
-      }
-
-      const results: Array<{ type: 'input' | 'output' | 'error'; text: string }> = [];
-      if (data.output) {
-        results.push({ type: 'output', text: data.output });
-      }
-      if (data.error) {
-        results.push({ type: 'error', text: data.error });
-      }
-      return results.length > 0 ? results : [{ type: 'output', text: "Command executed successfully\n" }];
-    } catch (error) {
-      return [{ type: 'error', text: "Failed to execute command. Check your connection.\n" }];
-    }
-  };
-
-  const legacySimulateCommand = (cmd: string): Array<{ type: 'input' | 'output' | 'error'; text: string }> => {
-    if (cmd.includes('get pods')) {
-      return [
-        { type: 'output', text: 'NAME               READY   STATUS             RESTARTS   AGE' },
-        { type: 'output', text: 'payment-service    0/1     CrashLoopBackOff   5          10m' },
-        { type: 'output', text: 'web-frontend       1/1     Running            0          2h' },
-        { type: 'output', text: 'auth-service       1/1     Running            0          2h\n' },
-      ];
-    } else if (cmd.includes('describe pod')) {
-      return [
-        { type: 'output', text: 'Name:         payment-service' },
-        { type: 'output', text: 'Namespace:    production' },
-        { type: 'output', text: 'Status:       CrashLoopBackOff' },
-        { type: 'output', text: 'Reason:       Error' },
-        { type: 'output', text: 'Message:      Back-off restarting failed container\n' },
-      ];
-    } else if (cmd.includes('logs')) {
-      return [
-        { type: 'error', text: 'Error: database connection failed' },
-        { type: 'error', text: 'panic: unable to connect to postgres://db:5432/payments' },
-        { type: 'output', text: 'goroutine 1 [running]:\n' },
-      ];
-    } else {
-      return [{ type: 'output', text: `Command executed: ${cmd}\n` }];
-    }
-  };
-
-  return (
-    <div className="h-full flex flex-col bg-[#0a0a0a]">
-      {/* Terminal Header */}
-      <div className="px-5 py-3 bg-gradient-to-r from-slate-900 to-slate-800 border-b border-slate-700/50 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-            <TerminalIcon className="w-4 h-4 text-cyan-400" />
-          </div>
-          <div>
-            <span className="font-mono text-sm text-slate-200 font-medium">kubectl terminal</span>
-            <span className="text-xs text-slate-500 ml-2">production-cluster</span>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/30" />
-          <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-lg shadow-yellow-500/30" />
-          <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/30" />
-        </div>
-      </div>
-
-      {/* Terminal Content */}
-      <div 
-        ref={terminalRef}
-        className="flex-1 overflow-auto p-5 font-mono text-sm leading-relaxed bg-[#0a0a0a]"
-        onClick={() => inputRef.current?.focus()}
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(14, 165, 233, 0.02) 1px, transparent 1px)
-          `,
-          backgroundSize: '100% 24px'
-        }}
-      >
-        {history.map((item, index) => (
-          <div key={index} className="mb-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
-            {item.type === 'input' ? (
-              <div className="flex items-center">
-                <span className="text-cyan-400 mr-2 select-none">$</span>
-                <span className="text-slate-200">{item.text}</span>
-              </div>
-            ) : item.type === 'error' ? (
-              <div className="text-red-400 pl-4">{item.text}</div>
-            ) : (
-              <div className="text-emerald-400 pl-4">{item.text}</div>
-            )}
-          </div>
-        ))}
-
-        {/* Input Line */}
-        <form onSubmit={handleSubmit} className="flex items-center mt-3 group">
-          <span className="text-cyan-400 mr-2 select-none">$</span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 bg-transparent outline-none text-slate-200 caret-emerald-400 placeholder:text-slate-600"
-            placeholder="Enter kubectl command..."
-            autoFocus
-          />
-          <div className="w-2.5 h-5 bg-emerald-400 animate-pulse rounded-sm" />
-        </form>
       </div>
     </div>
   );

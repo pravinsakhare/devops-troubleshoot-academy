@@ -88,18 +88,28 @@ export function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  // COMBINED LOGO CLICK HANDLER - Only one function now
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement> | React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     
-    if (pathname === "/") {
-      // If already on home page, smooth scroll to hero section
+    console.log('Logo clicked from:', pathname);
+    
+    // If already on home page, scroll to hero section
+    if (pathname === '/') {
+      console.log('Already on home page, scrolling to hero');
       const heroSection = document.getElementById("hero");
       if (heroSection) {
         heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-    } else {
-      // Navigate to home page and scroll to hero
-      router.push("/");
+      return;
+    }
+    
+    // Navigate to home page
+    try {
+      router.push('/');
+      console.log('Attempted router.push("/")');
+      
       // After navigation, scroll to hero (slight delay for page load)
       setTimeout(() => {
         const heroSection = document.getElementById("hero");
@@ -107,6 +117,18 @@ export function Header() {
           heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       }, 100);
+      
+      // Fallback: If router doesn't work after 100ms, force reload
+      setTimeout(() => {
+        if (window.location.pathname !== '/') {
+          console.log('Router failed, forcing window.location');
+          window.location.href = '/';
+        }
+      }, 100);
+    } catch (error) {
+      // Fallback to direct navigation
+      console.error('Router failed:', error);
+      window.location.href = '/';
     }
   };
 
@@ -129,38 +151,6 @@ export function Header() {
     { href: "/scenarios", label: "Scenarios", icon: Terminal },
     { href: "/achievements", label: "Achievements", icon: Trophy },
   ];
-
-  // ULTIMATE LOGO CLICK HANDLER - Multiple fallback methods
-  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('Logo clicked from:', pathname);
-    
-    // If already on home page, do nothing
-    if (pathname === '/') {
-      console.log('Already on home page');
-      return;
-    }
-    
-    // Method 1: Try Next.js router first
-    try {
-      router.push('/');
-      console.log('Attempted router.push("/")');
-      
-      // Method 2: If router doesn't work after 100ms, force reload
-      setTimeout(() => {
-        if (window.location.pathname !== '/') {
-          console.log('Router failed, forcing window.location');
-          window.location.href = '/';
-        }
-      }, 100);
-    } catch (error) {
-      // Method 3: Fallback to direct navigation
-      console.error('Router failed:', error);
-      window.location.href = '/';
-    }
-  };
 
   return (
     <>
@@ -200,7 +190,7 @@ export function Header() {
               <span className="text-xl font-display font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent hidden sm:block">
                 K8sTroubleshoot
               </span>
-            </a>
+            </Link>
 
             <div className="hidden lg:flex items-center space-x-1">
               <div
