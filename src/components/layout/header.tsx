@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -25,8 +25,6 @@ import {
   FileText,
   Users,
   Sparkles,
-  Moon,
-  Sun,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -80,6 +78,7 @@ const quickLinks = [
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
@@ -90,7 +89,6 @@ export function Header() {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
       
-      // Calculate scroll progress
       const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
       const progress = (window.scrollY / scrollHeight) * 100;
       setScrollProgress(progress);
@@ -106,9 +104,40 @@ export function Header() {
     { href: "/achievements", label: "Achievements", icon: Trophy },
   ];
 
+  // ULTIMATE LOGO CLICK HANDLER - Multiple fallback methods
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Logo clicked from:', pathname);
+    
+    // If already on home page, do nothing
+    if (pathname === '/') {
+      console.log('Already on home page');
+      return;
+    }
+    
+    // Method 1: Try Next.js router first
+    try {
+      router.push('/');
+      console.log('Attempted router.push("/")');
+      
+      // Method 2: If router doesn't work after 100ms, force reload
+      setTimeout(() => {
+        if (window.location.pathname !== '/') {
+          console.log('Router failed, forcing window.location');
+          window.location.href = '/';
+        }
+      }, 100);
+    } catch (error) {
+      // Method 3: Fallback to direct navigation
+      console.error('Router failed:', error);
+      window.location.href = '/';
+    }
+  };
+
   return (
     <>
-      {/* Progress Bar */}
       <div className="fixed top-0 left-0 right-0 h-0.5 bg-transparent z-[60]">
         <motion.div
           className="h-full progress-gradient"
@@ -129,8 +158,12 @@ export function Header() {
           <div className={`flex items-center justify-between transition-all duration-300 ${
             isScrolled ? "h-14" : "h-16"
           }`}>
-            {/* Logo */}
-            <Link href="/" className="flex items-center space-x-3 group">
+            {/* Logo with ultimate fix */}
+            <a 
+              href="/"
+              onClick={handleLogoClick}
+              className="flex items-center space-x-3 group cursor-pointer"
+            >
               <motion.div
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 whileTap={{ scale: 0.95 }}
@@ -141,11 +174,9 @@ export function Header() {
               <span className="text-xl font-display font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent hidden sm:block">
                 K8sTroubleshoot
               </span>
-            </Link>
+            </a>
 
-            {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-1">
-              {/* Courses Dropdown with Mega Menu */}
               <div
                 className="relative"
                 onMouseEnter={() => setIsMegaMenuOpen(true)}
@@ -175,7 +206,6 @@ export function Header() {
                     >
                       <div className="bg-card/95 backdrop-blur-xl border border-cyan-500/20 rounded-xl shadow-2xl shadow-black/30 overflow-hidden">
                         <div className="grid grid-cols-2 gap-0">
-                          {/* Popular Paths */}
                           <div className="p-6 border-r border-cyan-500/10">
                             <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wide mb-4 flex items-center">
                               <Sparkles className="w-4 h-4 mr-2" />
@@ -204,7 +234,6 @@ export function Header() {
                             </div>
                           </div>
 
-                          {/* Quick Links & Resources */}
                           <div className="p-6">
                             <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wide mb-4 flex items-center">
                               <FileText className="w-4 h-4 mr-2" />
@@ -225,7 +254,6 @@ export function Header() {
                               ))}
                             </div>
 
-                            {/* Featured Course Card */}
                             <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-500/20">
                               <Badge className="mb-2 bg-cyan-500/20 text-cyan-400 border-none">
                                 NEW
@@ -241,7 +269,6 @@ export function Header() {
                           </div>
                         </div>
 
-                        {/* Bottom Bar */}
                         <div className="px-6 py-3 bg-secondary/30 border-t border-cyan-500/10 flex items-center justify-between">
                           <Link
                             href="/scenarios"
@@ -286,9 +313,7 @@ export function Header() {
               })}
             </div>
 
-            {/* Right Side Actions */}
             <div className="flex items-center space-x-2">
-              {/* Search Button */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -298,7 +323,6 @@ export function Header() {
                 <Search className="w-5 h-5" />
               </Button>
 
-              {/* Notifications */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -308,7 +332,6 @@ export function Header() {
                 <span className="absolute top-1 right-1 w-2 h-2 bg-cyan-500 rounded-full animate-pulse" />
               </Button>
 
-              {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
@@ -349,7 +372,6 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Mobile Menu Button */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -366,7 +388,6 @@ export function Header() {
           </div>
         </nav>
 
-        {/* Mobile Navigation */}
         <AnimatePresence>
           {isMobileMenuOpen && (
             <motion.div
@@ -400,7 +421,6 @@ export function Header() {
                   );
                 })}
 
-                {/* Course Categories for Mobile */}
                 <div className="pt-4 border-t border-cyan-500/10">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 px-4">
                     Course Categories
@@ -424,7 +444,6 @@ export function Header() {
         </AnimatePresence>
       </motion.header>
 
-      {/* Search Modal */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div
