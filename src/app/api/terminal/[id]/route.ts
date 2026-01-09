@@ -1,207 +1,163 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = "nodejs";
+// Store terminal sessions in memory
+const sessions = new Map<string, { commandBuffer: string; lastCommand: string }>();
 
-export async function websocket(client: any, request: NextRequest) {
-  const sessionId = request.nextUrl.pathname.split("/").pop() || "default";
-
+export async function POST(request: NextRequest) {
   try {
-    console.log(`Terminal session started: ${sessionId}`);
+    const { sessionId, input } = await request.json();
 
-    // Send welcome message
-    client.send(
-      JSON.stringify({
-        type: "output",
-        data: "Welcome to K8s Troubleshooting Terminal\r\nConnected to cluster: production-cluster\r\n$ ",
-      })
-    );
-
-    let commandBuffer = "";
-
-    // Handle incoming messages
-    client.on("message", async (message: string) => {
-      try {
-        const data = JSON.parse(message);
-
-        if (data.type === "input") {
-          const input = data.data;
-
-          // Echo input
-          client.send(
-            JSON.stringify({
-              type: "output",
-              data: input,
-            })
-          );
-
-          // Handle Enter key)
-          if (input === "\r" || input === "\n" || input === "\r\n") {    );
-            const command = commandBuffer.trim();
-            commandBuffer = "";essages
-on("message", async (message: string) => {
-            if (command) {
-              const response = simulateKubectlCommand(command);parse(message);
-              client.send(
-                JSON.stringify({
-                  type: "output",nst input = data.data;
-                  data: response,
-                })nput
-              );
-            }     JSON.stringify({
-       type: "output",
-            // Send prompt              data: input,
-            client.send(
-              JSON.stringify({
-                type: "output",
-                data: "$ ",
-              })          if (input === "\r" || input === "\n" || input === "\r\n") {
-            );
-          } else if (input === "\u007F" || input === "\b") {on.buffer.trim();
-            // Backspace
-            if (commandBuffer.length > 0) {
-              commandBuffer = commandBuffer.slice(0, -1);   if (command) {
-            }cuteCommand(client, command);
-          } else {
-            // Accumulate input
-            commandBuffer += input;     // Send prompt
-          }            client.send(
-        }
-      } catch (error) {,
-        console.error("Error processing message:", error);     data: "$ ",
-      }
-    });
-"\b") {
-    client.on("close", () => {     // Backspace
-      console.log(`Terminal session closed: ${sessionId}`);     if (session.buffer.length > 0) {
-    });              session.buffer = session.buffer.slice(0, -1);
-
-    client.on("error", (error: Error) => {
-      console.error("WebSocket error:", error); // Add to buffer
-    });uffer += input;
-  } catch (error) {
-    console.error("Failed to initialize terminal session:", error);
-  } catch (error) {
-} console.error("Error processing message:", error);
-
-function simulateKubectlCommand(command: string): string {
-  if (command.includes("get pods") && command.includes("production")) {
-    return `NAME              READY   STATUS             RESTARTS       AGEonnect
-payment-service   0/1     CrashLoopBackOff   5 (22s ago)   10m) => {
-web-frontend      1/1     Running            0              2hnal session closed: ${sessionId}`);
-auth-service      1/1     Running            0              2h\r\n`;
-  }
-
-  if (command.includes("describe pod") && command.includes("payment-service")) {ror", (error: Error) => {
-    return `Name:         payment-service
-Namespace:    production sessions.delete(sessionId);
-Status:       CrashLoopBackOff });
-Image:        alpine:latest } catch (error) {
-Command:      sh,-c,exit 1    console.error("Failed to initialize terminal session:", error);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}  return `Command executed: ${command}\r\n`;  }kubectl get events -n production         - View events\r\n`;kubectl logs <pod-name> -n production    - View logskubectl describe pod <name> -n production - Get pod detailskubectl get pods -n production          - List pods    return `Common kubectl commands:  if (command.includes("help")) {  }production           Active   35m\r\n`;kube-system          Active   35mkube-public          Active   35mkube-node-lease      Active   35mdefault              Active   35m    return `NAME                 STATUS   AGE  if (command.includes("get ns") || command.includes("get namespace")) {  }10m         Warning   BackOff           pod/payment-service       Back-off restarting failed container\r\n`;10m         Normal    Created           pod/payment-service       Created container payment    return `LAST SEEN   TYPE      REASON            OBJECT                     MESSAGE  if (command.includes("get events")) {  }    return `Error: exit 1\r\n`;  if (command.includes("logs") && command.includes("payment-service")) {  }Exit Code:    1\r\n`;Reason:       ErrorLast State:   TerminatedReason:       CrashLoopBackOffState:        Waiting    try {
-      client.send(
-        JSON.stringify({
-          type: "error",
-          data: "Failed to initialize terminal",
-        })
-      );
-    } catch (e) {
-      console.error("Error sending error message:", e);
+    if (!sessionId) {
+      return NextResponse.json({ error: "No session ID" }, { status: 400 });
     }
+
+    // Create session if doesn't exist
+    if (!sessions.has(sessionId)) {
+      sessions.set(sessionId, { commandBuffer: "", lastCommand: "" });
+    }
+
+    const session = sessions.get(sessionId)!;
+    let output = "";
+    let isCommand = false;
+
+    // Handle input
+    if (input === "\r" || input === "\n" || input === "\r\n") {
+      // Execute command
+      const command = session.commandBuffer.trim();
+      session.commandBuffer = "";
+
+      if (command) {
+        session.lastCommand = command;
+        output = handleCommand(command);
+        isCommand = true;
+      }
+
+      output += "\r\n$ ";
+    } else if (input === "\u007F" || input === "\b") {
+      // Backspace
+      if (session.commandBuffer.length > 0) {
+        session.commandBuffer = session.commandBuffer.slice(0, -1);
+      }
+      output = input;
+    } else if (input === "\u0003") {
+      // Ctrl+C
+      session.commandBuffer = "";
+      output = "^C\r\n$ ";
+    } else if (input === "\u0015") {
+      // Ctrl+U - clear line
+      session.commandBuffer = "";
+      output = "\r\n$ ";
+    } else {
+      // Regular character
+      session.commandBuffer += input;
+      output = input;
+    }
+
+    return NextResponse.json({ output, isCommand });
+  } catch (error) {
+    console.error("Terminal API error:", error);
+    return NextResponse.json(
+      { error: "Terminal error" },
+      { status: 500 }
+    );
   }
 }
 
-async function executeCommand(client: any, command: string) {
-  try {
-    // Safety: only allow specific commands
-    const allowedCommands = [
-      "kubectl",
-      "ls",
-      "pwd",
-      "echo",
-      "cat",
-      "grep",
-      "help",
-    ];
-    const firstWord = command.split(" ")[0];
+function handleCommand(command: string): string {
+  const trimmed = command.trim().toLowerCase();
 
-    if (!allowedCommands.includes(firstWord)) {
-      client.send(
-        JSON.stringify({
-          type: "output",
-          data: `bash: ${firstWord}: command not found\r\n`,
-        })
-      );
-      return;
-    }
-
-    // Execute the command
-    const { stdout, stderr } = await execPromise(command, {
-      timeout: 30000,
-      maxBuffer: 1024 * 1024,
-    });
-
-    // Send output
-    if (stdout) {
-      client.send(
-        JSON.stringify({
-          type: "output",
-          data: stdout + "\r\n",
-        })
-      );
-    }
-
-    if (stderr) {
-      client.send(
-        JSON.stringify({
-          type: "output",
-          data: stderr + "\r\n",
-        })
-      );
-    }
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    client.send(
-      JSON.stringify({
-        type: "output",
-        data: `Error: ${errorMsg}\r\n`,
-      })
-    );
+  // Clear command
+  if (trimmed === "clear" || trimmed === "cls") {
+    return "\x1b[2J\x1b[H"; // ANSI clear screen code
   }
+
+  // Echo command
+  if (trimmed.startsWith("echo ")) {
+    const text = command.trim().substring(5);
+    return text;
+  }
+
+  // pwd command
+  if (trimmed === "pwd") {
+    return "/workspace";
+  }
+
+  // ls command
+  if (trimmed === "ls" || trimmed === "ls -la") {
+    return `total 48
+drwxr-xr-x  3 user user  4096 Jan  9 20:00 .
+drwxr-xr-x  1 user user  4096 Jan  9 19:00 ..
+-rw-r--r--  1 user user   256 Jan  9 19:00 kubeconfig
+-rw-r--r--  1 user user   512 Jan  9 19:00 config.yaml
+drwxr-xr-x  2 user user  4096 Jan  9 19:00 manifests`;
+  }
+
+  // kubectl get pods
+  if (trimmed.includes("get pods") && trimmed.includes("production")) {
+    return `NAME              READY   STATUS             RESTARTS       AGE
+payment-service   0/1     CrashLoopBackOff   5 (22s ago)   10m
+web-frontend      1/1     Running            0              2h
+auth-service      1/1     Running            0              2h`;
+  }
+
+  // kubectl describe pod
+  if (trimmed.includes("describe pod") && trimmed.includes("payment-service")) {
+    return `Name:         payment-service
+Namespace:    production
+Status:       CrashLoopBackOff
+Image:        alpine:latest
+Command:      sh,-c,exit 1
+State:        Waiting
+Reason:       CrashLoopBackOff
+Last State:   Terminated
+Reason:       Error
+Exit Code:    1
+Message:      Container failed to run`;
+  }
+
+  // kubectl logs
+  if (trimmed.includes("logs") && trimmed.includes("payment-service")) {
+    return `Error: exit 1`;
+  }
+
+  // kubectl get events
+  if (trimmed.includes("get events")) {
+    return `LAST SEEN   TYPE      REASON            OBJECT                     MESSAGE
+10m         Normal    Created           pod/payment-service       Created container payment
+10m         Warning   BackOff           pod/payment-service       Back-off restarting failed container`;
+  }
+
+  // kubectl get ns / namespaces
+  if (trimmed.includes("get ns") || trimmed.includes("get namespace")) {
+    return `NAME                 STATUS   AGE
+default              Active   35m
+kube-node-lease      Active   35m
+kube-public          Active   35m
+kube-system          Active   35m
+production           Active   35m`;
+  }
+
+  // Help command
+  if (trimmed === "help" || trimmed === "?") {
+    return `Available commands:
+  clear                                        Clear screen
+  echo <text>                                  Print text
+  pwd                                          Print working directory
+  ls                                           List files
+  
+Available kubectl commands:
+  kubectl get pods -n production              List all pods
+  kubectl describe pod payment-service -n production  Get pod details
+  kubectl logs payment-service -n production   View pod logs
+  kubectl get events -n production             View cluster events
+  kubectl get namespaces                       List namespaces
+  help                                         Show this help message`;
+  }
+
+  // Unknown command
+  if (trimmed) {
+    return `bash: ${command}: command not found`;
+  }
+
+  return "";
 }

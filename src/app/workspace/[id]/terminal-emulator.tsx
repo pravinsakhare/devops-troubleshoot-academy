@@ -16,7 +16,6 @@ export default function TerminalEmulator({
 }: TerminalEmulatorProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminalInstanceRef = useRef<any>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,27 +44,35 @@ export default function TerminalEmulator({
         const term = new Terminal({
           cursorBlink: true,
           cursorStyle: "block",
-          fontSize: 14,
-          fontFamily: '"Courier New", monospace',
+          fontSize: 13,
+          fontFamily: '"Fira Code", "Monaco", "Courier New", monospace',
+          fontWeight: 400,
+          lineHeight: 1.2,
           theme: {
             background: "#0a0a0a",
             foreground: "#e0e0e0",
             cursor: "#10b981",
+            cursorAccent: "#0a0a0a",
+            selection: "rgba(14, 165, 233, 0.3)",
           },
+          scrollback: 1000,
+          tabStopWidth: 4,
         });
 
         term.open(terminalRef.current);
 
-        // Manual fit - calculate rows and cols based on container
+        // Fit terminal
         fitTerminal(term, terminalRef.current);
 
         terminalInstanceRef.current = { term };
 
         term.writeln("Welcome to K8s Troubleshooting Terminal");
         term.writeln("Connected to cluster: production-cluster");
-        term.writeln("Type your kubectl commands below...\n");
+        term.writeln("Type 'help' for available commands\n");
+        term.write("$ ");
 
-        initializeWebSocket(term, workspaceId);
+        // Setup terminal input handling
+        setupTerminalInput(term, workspaceId, onCommandSubmit, onProgressUpdate);
 
         const handleResize = () => {
           if (terminalInstanceRef.current?.term && terminalRef.current) {
@@ -74,6 +81,7 @@ export default function TerminalEmulator({
         };
 
         window.addEventListener("resize", handleResize);
+        setIsConnected(true);
         setIsLoading(false);
 
         return () => {
@@ -100,27 +108,20 @@ export default function TerminalEmulator({
 
     return () => {
       isMounted = false;
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
     };
   }, [workspaceId]);
 
   const fitTerminal = (term: any, container: HTMLElement) => {
     try {
-      // Get container dimensions
       const width = container.offsetWidth;
       const height = container.offsetHeight;
 
-      // Approximate character dimensions (adjust based on font)
       const charWidth = 8;
       const charHeight = 20;
 
-      // Calculate cols and rows
       const cols = Math.floor(width / charWidth);
       const rows = Math.floor(height / charHeight);
 
-      // Set terminal size (minimum 20x5)
       if (cols > 20 && rows > 5) {
         term.resize(cols, rows);
       }
@@ -139,13 +140,9 @@ export default function TerminalEmulator({
 
       const script = document.createElement("script");
       script.src = src;
-      script.type = "text/javascript";
       script.async = true;
 
-      let timeoutId: NodeJS.Timeout;
-
       const cleanup = () => {
-        clearTimeout(timeoutId);
         script.onload = null;
         script.onerror = null;
       };
@@ -160,11 +157,6 @@ export default function TerminalEmulator({
         cleanup();
         reject(new Error(`Failed to load ${src}`));
       };
-
-      timeoutId = setTimeout(() => {
-        cleanup();
-        reject(new Error(`Timeout loading ${src}`));
-      }, 10000);
 
       document.head.appendChild(script);
     });
@@ -181,7 +173,6 @@ export default function TerminalEmulator({
       const link = document.createElement("link");
       link.rel = "stylesheet";
       link.href = href;
-      link.type = "text/css";
 
       link.onload = () => {
         console.log(`Loaded CSS: ${href}`);
@@ -189,7 +180,7 @@ export default function TerminalEmulator({
       };
 
       link.onerror = () => {
-        console.warn(`Failed to load CSS ${href}, continuing anyway`);
+        console.warn(`CSS load warning: ${href}`);
         resolve();
       };
 
@@ -197,54 +188,100 @@ export default function TerminalEmulator({
     });
   };
 
-  const initializeWebSocket = (term: any, workspaceId: string) => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/api/terminal/${workspaceId}`;
+  const setupTerminalInput = (
+    term: any,
+    workspaceId: string,
+    onCommandSubmit: () => void,
+    onProgressUpdate: (progress: number) => void
+  ) => {
+    let commandBuffer = "";
+    let isProcessing = false;
 
-    try {
-      const ws = new WebSocket(wsUrl);
+    term.onData(async (data: string) => {
+      if (isProcessing) return;
 
-      ws.onopen = () => {
-        setIsConnected(true);
-        term.writeln("\x1b[32mTerminal connected\x1b[0m\n");
-      };
+      try {
+        // Handle Enter key
+        if (data === "\r" || data === "\n" || data === "\r\n") {
+          const command = commandBuffer.trim();
+          term.write("\r\n");
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.type === "output") {
-            term.write(data.data);
-            if (data.data.includes("payment-service") || data.data.includes("Running")) {
-              onProgressUpdate(prev => Math.min(100, prev + 5));
+          if (command) {
+            isProcessing = true;
+
+            const response = await fetch("/api/terminal/" + workspaceId, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sessionId: workspaceId,
+                input: data,
+              }),
+            });
+
+            if (!response.ok) throw new Error("Terminal request failed");
+
+            const result = await response.json();
+            
+            // Handle clear screen command
+            if (result.output.includes("\x1b[2J\x1b[H")) {
+              term.clear();
+              term.write("$ ");
+            } else {
+              term.write(result.output);
             }
+
+            // Track command execution
+            onCommandSubmit();
+
+            // Detect progress based on command output
+            detectProgress(command, result.output, onProgressUpdate);
+
+            commandBuffer = "";
+            isProcessing = false;
+          } else {
+            term.write("$ ");
           }
-        } catch (e) {
-          console.error("Parse error:", e);
+          return;
         }
-      };
 
-      ws.onerror = (event) => {
-        console.error("WebSocket error:", event);
-        setIsConnected(false);
-      };
-
-      ws.onclose = () => {
-        setIsConnected(false);
-      };
-
-      wsRef.current = ws;
-
-      term.onData((data: string) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "input", data }));
-          onCommandSubmit();
+        // Handle backspace
+        if (data === "\u007F" || data === "\b") {
+          if (commandBuffer.length > 0) {
+            commandBuffer = commandBuffer.slice(0, -1);
+            term.write("\b \b");
+          }
+          return;
         }
-      });
-    } catch (err) {
-      console.error("WebSocket initialization error:", err);
-      setError("Failed to connect to terminal server");
-    }
+
+        // Handle Ctrl+C
+        if (data === "\u0003") {
+          commandBuffer = "";
+          term.write("^C\r\n$ ");
+          return;
+        }
+
+        // Handle Ctrl+U
+        if (data === "\u0015") {
+          if (commandBuffer.length > 0) {
+            const backspaces = "\b".repeat(commandBuffer.length);
+            const spaces = " ".repeat(commandBuffer.length);
+            term.write(backspaces + spaces + backspaces);
+          }
+          commandBuffer = "";
+          return;
+        }
+
+        // Regular character
+        commandBuffer += data;
+        term.write(data);
+
+      } catch (error) {
+        console.error("Terminal error:", error);
+        term.write("\r\nError: Command failed\r\n$ ");
+        commandBuffer = "";
+        isProcessing = false;
+      }
+    });
   };
 
   if (error) {
@@ -289,11 +326,77 @@ export default function TerminalEmulator({
       <div 
         ref={terminalRef}
         className="flex-1 overflow-hidden"
-        style={{
-          backgroundImage: `linear-gradient(rgba(14, 165, 233, 0.02) 1px, transparent 1px)`,
-          backgroundSize: '100% 24px'
-        }}
       />
+
+      {/* Custom xterm styling */}
+      <style>{`
+        .xterm {
+          padding: 10px !important;
+          font-family: 'Fira Code', 'Monaco', 'Courier New', monospace !important;
+          font-size: 13px !important;
+          line-height: 1.5 !important;
+        }
+
+        .xterm-screen {
+          padding: 0 !important;
+        }
+
+        .xterm-viewport {
+          background-color: #0a0a0a !important;
+        }
+
+        .xterm-cursor-layer {
+          opacity: 1 !important;
+        }
+
+        .xterm .xterm-cursor {
+          background-color: #10b981 !important;
+          border: none !important;
+          opacity: 1 !important;
+        }
+
+        .xterm .xterm-selection div {
+          background-color: rgba(14, 165, 233, 0.4) !important;
+        }
+
+        .xterm .xterm-rows {
+          padding: 0 !important;
+        }
+      `}</style>
     </div>
   );
+}
+
+function detectProgress(
+  command: string,
+  output: string,
+  onProgressUpdate: (progress: number) => void
+) {
+  const cmd = command.toLowerCase();
+
+  // Detect hints-based progress
+  if (cmd.includes("get pods") && cmd.includes("production")) {
+    onProgressUpdate(prev => Math.min(30, prev + 5));
+  }
+
+  if (cmd.includes("describe pod") && cmd.includes("payment-service")) {
+    onProgressUpdate(prev => Math.min(50, prev + 10));
+  }
+
+  if (cmd.includes("logs") && cmd.includes("payment-service")) {
+    onProgressUpdate(prev => Math.min(70, prev + 10));
+  }
+
+  if (cmd.includes("get events")) {
+    onProgressUpdate(prev => Math.min(85, prev + 5));
+  }
+
+  // Detect if user found the issue (output contains error details)
+  if (output.includes("exit 1") || output.includes("sh,-c,exit 1")) {
+    onProgressUpdate(prev => Math.min(90, prev + 5));
+  }
+
+  if (output.includes("CrashLoopBackOff")) {
+    onProgressUpdate(prev => Math.min(75, prev + 3));
+  }
 }
