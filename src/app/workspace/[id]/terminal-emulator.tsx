@@ -369,13 +369,18 @@ export default function TerminalEmulator({
         completionIndex = (completionIndex + 1) % currentSuggestions.length;
         const suggestion = currentSuggestions[completionIndex];
         
+        // Save old buffer length for clearing
+        const oldBufferLength = commandBuffer.length;
+        
         // Clear current input
-        const backspaces = '\b'.repeat(commandBuffer.length);
-        const spaces = ' '.repeat(commandBuffer.length);
+        const backspaces = '\b'.repeat(oldBufferLength);
+        const spaces = ' '.repeat(oldBufferLength);
         term.write(backspaces + spaces + backspaces);
         
         // Write completed command
         commandBuffer = suggestion.command;
+        // Fix Bug 1: Update cursor position to match new command length
+        cursorPositionRef.current = commandBuffer.length;
         term.write(commandBuffer);
         updateCursor();
       }
@@ -383,6 +388,9 @@ export default function TerminalEmulator({
 
     const handleHistoryNavigation = (direction: 'up' | 'down') => {
       const history = CommandHistoryManager.loadHistory(workspaceId);
+      
+      // Fix Bug 2: Save old buffer length BEFORE updating commandBuffer
+      const oldBufferLength = commandBuffer.length;
       
       if (direction === 'up') {
         if (historyIndex === -1) {
@@ -402,11 +410,15 @@ export default function TerminalEmulator({
         }
       }
 
-      // Clear current line and rewrite
-      const backspaces = '\b'.repeat(commandBuffer.length || 100);
-      const spaces = ' '.repeat(commandBuffer.length || 100);
+      // Clear current line and rewrite using old buffer length
+      // Fix Bug 2: Use oldBufferLength instead of commandBuffer.length || 100
+      const backspaces = '\b'.repeat(oldBufferLength);
+      const spaces = ' '.repeat(oldBufferLength);
       term.write(backspaces + spaces + backspaces);
       term.write(commandBuffer);
+      
+      // Fix Bug 3: Update cursor position to match new command length
+      cursorPositionRef.current = commandBuffer.length;
       updateCursor();
     };
 
@@ -516,6 +528,9 @@ export default function TerminalEmulator({
         // Handle Enter key
         if (data === "\r" || data === "\n" || data === "\r\n") {
           const command = commandBuffer.trim();
+          // Fix Bug 1: Clear commandBuffer even if command is only whitespace
+          commandBuffer = '';
+          cursorPositionRef.current = 0;
           if (command) {
             await executeCommand(command);
           } else {
@@ -537,6 +552,8 @@ export default function TerminalEmulator({
             setState(prev => ({ ...prev, isExecuting: false }));
           }
           commandBuffer = '';
+          // Fix Bug 1: Reset cursor position to 0 for consistency
+          cursorPositionRef.current = 0;
           term.write("^C\r\n" + getPrompt());
           return;
         }
@@ -546,18 +563,31 @@ export default function TerminalEmulator({
           term.clear();
           term.write(getPrompt());
           commandBuffer = '';
+          // Fix Bug 1: Reset cursor position to 0 for consistency
+          cursorPositionRef.current = 0;
           return;
         }
 
-        // Handle Ctrl+D - Exit/EOF
+        // Handle Ctrl+D - Exit/EOF or Delete character at cursor
         if (data === "\u0004") {
           if (commandBuffer.length === 0) {
             term.write("\r\n\x1b[1;33mUse 'exit' command or close the tab to exit\x1b[0m\r\n" + getPrompt());
           } else {
-            // Delete character at cursor
-            if (commandBuffer.length > 0) {
-              commandBuffer = commandBuffer.slice(0, -1);
-              term.write("\b \b");
+            // Fix Bug 2: Delete character at cursor position, not last character
+            if (cursorPositionRef.current < commandBuffer.length) {
+              const before = commandBuffer.slice(0, cursorPositionRef.current);
+              const after = commandBuffer.slice(cursorPositionRef.current + 1);
+              commandBuffer = before + after;
+              
+              // Redraw remaining characters after cursor
+              if (after) {
+                term.write(after);
+                term.write('\b'.repeat(after.length));
+              } else {
+                // If at end, just erase the character
+                term.write(' ');
+                term.write('\b');
+              }
             }
           }
           return;
@@ -571,7 +601,8 @@ export default function TerminalEmulator({
 
         // Handle Ctrl+A - Move to start
         if (data === "\u0001") {
-          const backspaces = '\b'.repeat(commandBuffer.length);
+          // Fix Bug 3: Use cursorPositionRef.current instead of commandBuffer.length
+          const backspaces = '\b'.repeat(cursorPositionRef.current);
           term.write(backspaces);
           cursorPositionRef.current = 0;
           return;
@@ -588,8 +619,9 @@ export default function TerminalEmulator({
         if (data === "\u000B") {
           const toDelete = commandBuffer.slice(cursorPositionRef.current);
           commandBuffer = commandBuffer.slice(0, cursorPositionRef.current);
-          const spaces = ' '.repeat(toDelete.length);
-          term.write(spaces);
+          // Use ANSI escape sequence to erase from cursor to end of line
+          // \x1b[K erases from cursor to end of line (more reliable than spaces)
+          term.write('\x1b[K');
           return;
         }
 
@@ -664,9 +696,13 @@ export default function TerminalEmulator({
             const match = history.find(cmd => cmd.includes(reverseSearchQuery));
             if (match) {
               commandBuffer = match;
+              // Fix Bug 4: Update cursor position to match new command length
+              cursorPositionRef.current = commandBuffer.length;
               term.write(`\r\n${getPrompt()}${commandBuffer}`);
             } else {
               term.write(`\r\n\x1b[1;31mNo match found\x1b[0m\r\n${getPrompt()}`);
+              // Reset cursor position when no match found
+              cursorPositionRef.current = 0;
             }
             isReverseSearching = false;
             reverseSearchQuery = '';
@@ -713,10 +749,56 @@ export default function TerminalEmulator({
 
   // Export terminal session
   const exportSession = useCallback(() => {
-    const output = state.output.map(line => {
-      const time = line.timestamp.toLocaleTimeString();
-      return `[${time}] ${line.type.toUpperCase()}: ${line.content}`;
-    }).join('\n');
+    // Fix Bug 2: Use xterm's buffer to get actual terminal content instead of empty state.output
+    let output = '';
+    
+    try {
+      if (terminalInstanceRef.current?.term) {
+        const term = terminalInstanceRef.current.term;
+        
+        // Try to get content from xterm buffer
+        // Use both active and normal buffers for complete export
+        const buffers = [term.buffer.active, term.buffer.normal].filter(Boolean);
+        
+        for (const buffer of buffers) {
+          if (!buffer) continue;
+          
+          // Extract text from xterm buffer
+          // Start from baseY to get scrollback + visible content
+          const baseY = buffer.baseY;
+          const length = buffer.length;
+          
+          for (let i = 0; i < length; i++) {
+            try {
+              const line = buffer.getLine(i);
+              if (line) {
+                // translateToString(false) preserves trailing whitespace for accurate export
+                const lineText = line.translateToString(false);
+                output += lineText + '\n';
+              }
+            } catch (err) {
+              // Skip lines that can't be read
+              console.warn('Failed to read line', i, err);
+            }
+          }
+          
+          // Only use first buffer (active) to avoid duplicates
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('Error exporting terminal session:', error);
+      output = `Terminal session export error: ${error instanceof Error ? error.message : 'Unknown error'}\n`;
+    }
+    
+    // If no content, provide a helpful message
+    if (!output.trim()) {
+      output = 'Terminal session export\nNo terminal output available yet.\nPlease run some commands first.\n';
+    } else {
+      // Add header with timestamp
+      const header = `Terminal Session Export\nWorkspace: ${workspaceId}\nExported: ${new Date().toISOString()}\n${'='.repeat(50)}\n\n`;
+      output = header + output;
+    }
 
     const blob = new Blob([output], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -727,7 +809,7 @@ export default function TerminalEmulator({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [state.output, workspaceId]);
+  }, [workspaceId]);
 
   // Clear history
   const clearHistory = useCallback(() => {
